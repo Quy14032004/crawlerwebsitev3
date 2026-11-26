@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="main-container">
+    <h2 class="mb-3"><i class="bi bi-aspect-ratio"></i> Phóng to ảnh (giữ tỉ lệ)</h2>
+
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% if messages %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ 'danger' if category == 'error' else category }}">{{ message }}</div>
+    {% endfor %}
+    {% endif %}
+    {% endwith %}
+
+    <form method="post" enctype="multipart/form-data" class="card p-3 mb-4">
+        <div class="row g-3 align-items-center">
+            <div class="col-md-6">
+                <label class="form-label">Chọn ảnh đầu vào</label>
+                <input class="form-control" type="file" name="image" accept="image/*" required>
+            </div>
+            <div class="col-md-3">
+                <label class="form-label">Kích thước đích (WxH)</label>
+                <input class="form-control" type="text" name="target" value="800x800">
+            </div>
+            <div class="col-md-3 d-grid">
+                <label class="form-label invisible">&nbsp;</label>
+                <button class="btn btn-primary" type="submit"><i class="bi bi-magic"></i> Phóng to</button>
+            </div>
+        </div>
+        <div class="form-text mt-2">Ảnh sẽ được giữ nguyên tỉ lệ và canh giữa trên nền trắng để đạt kích thước đích.
+        </div>
+    </form>
+
+    {% if result %}
+    <div class="card">
+        <div class="card-header">
+            Kết quả: {{ result.filename }} ({{ result.size }})
+        </div>
+        <div class="card-body">
+            <img src="{{ result.url }}" class="img-fluid border" alt="{{ result.filename }}">
+            <div class="mt-3">
+                <a class="btn btn-success" href="{{ result.url }}" download>
+                    <i class="bi bi-download"></i> Tải xuống
+                </a>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,171 @@
+=== Script 0 (attrs: id="spcloader" type="text/javascript" async="" src="https://consent.festo.com/0d8db65a-2bd4-436d-8f07-294af959a28a/loader.js?target_type=notice&amp;target=4ERPrBZZ" charset="utf-8") ===
+
+
+=== Script 1 (attrs: defer="defer" src="/modules/fox/catalog/static/js/index.357b898225.js") ===
+
+
+=== Script 2 (attrs: ) ===
+;(function(){
+              window._MODERNJS_ROUTE_MANIFEST = {"routeAssets":{"index":{"chunkIds":[47,811,625,505,761,163],"assets":["modules/fox/catalog/static/js/async/47.4114fdc3b7.js","modules/fox/catalog/static/js/async/811.ffc7d86e17.js","modules/fox/catalog/static/js/async/761.04666a7f12.js","modules/fox/catalog/static/css/async/async-index.1fa1407653.css","modules/fox/catalog/static/js/async/async-index.aeb0794d98.js"],"referenceCssAssets":["modules/fox/catalog/static/css/async/async-index.1fa1407653.css"]}}};
+            })();
+
+
+=== Script 3 (attrs: ) ===
+var fwaLayer={stored:[],chunksStored:[],send:function(s){this.stored.push(s)},sendChunks:function(s){this.chunksStored.push(s)}}
+
+
+=== Script 4 (attrs: id="kameleoonHandler") ===
+var kameleoonLoadingTimeout=1e3;if(window.kameleoonQueue=window.kameleoonQueue||[],window.kameleoonStartLoadTime=(new Date).getTime(),!document.getElementById("kameleoonLoadingStyleSheet")&&!window.kameleoonDisplayPageTimeOut){var kameleoonS=document.getElementsByTagName("script")[0],kameleoonCc="* { visibility: hidden !important; background-image: none !important; }",kameleoonStn=document.createElement("style");kameleoonStn.type="text/css",kameleoonStn.id="kameleoonLoadingStyleSheet",kameleoonStn.styleSheet?kameleoonStn.styleSheet.cssText=kameleoonCc:kameleoonStn.appendChild(document.createTextNode(kameleoonCc)),kameleoonS.parentNode.insertBefore(kameleoonStn,kameleoonS),window.kameleoonDisplayPage=function(e){e||(window.kameleoonTimeout=!0),kameleoonStn.parentNode&&kameleoonStn.parentNode.removeChild(kameleoonStn)},window.kameleoonDisplayPageTimeOut=window.setTimeout(window.kameleoonDisplayPage,kameleoonLoadingTimeout)}
+
+
+=== Script 5 (attrs: src="//5twvwv0qrs.kameleoon.eu/engine.js" fetchpriority="high" async="" id="kameleoonJs") ===
+
+
+=== Script 6 (attrs: ) ===
+window.isDidomiActive=!0
+
+
+=== Script 7 (attrs: type="text/javascript" defer="" src="https://www.festo.com/media/fwalib/fwa_cea_latest.js" data-fwa_lib-loadscript="fwa_cea") ===
+
+
+=== Script 8 (attrs: type="text/javascript" defer="" src="https://www.festo.com/media/fwalib/fwa_cft_latest.js" data-fwa_lib-loadscript="fwa_cft") ===
+
+
+=== Script 9 (attrs: type="application/ld+json" data-react-helmet="true") ===
+{"@context":"https://schema.org","@type":"Product","name":"Trục vít ELGD-BS-KF-60-100-0H-10P","description":"Kích thước: 60, Lực nạp tối đa Fx: 1550 N, Độ chính xác lặp lại: ±0,01 mm","sku":"8192260","gtin":"4052568644512","brand":{"@type":"Brand","name":"Festo"},"model":"ELGD-BS-KF-60-100-0H-10P","image":["https://www.festo.com/media/catalog/157441_1056x1024-j.jpg","https://www.festo.com/media/catalog/157442_1056x1024-j.jpg","https://www.festo.com/media/catalog/157443_1056x1024-j.jpg","https://www.festo.com/media/catalog/7611_1056x1024-j.jpg"],"url":"https://www.festo.com/vn/vi/a/8192260"}
+
+
+=== Script 10 (attrs: type="text/javascript" defer="" src="https://www.festo.com/media/fwalib/fwa_tml_latest.js" data-fwa_lib-loadscript="fwa_tml") ===
+
+
+=== Script 11 (attrs: type="text/javascript" async="" src="https://consent.festo.com/sdk/50100e54a1170cd56cf6c888e5df9d34f4aee641/modern/sdk.50100e54a1170cd56cf6c888e5df9d34f4aee641.js" charset="utf-8") ===
+
+
+=== Script 12 (attrs: type="text/javascript" async="" src="https://intercept.inmoment.eu/intercept/v1/init/3038/9vcfOmZomP6BIyi2PSMuNPxFlterDdGOcv2SSllK5I=?testing=false&amp;loadTestCustomJS=false&amp;interceptClientVersion=null") ===
+
+
+=== Script 13 (attrs: type="text/javascript" async="" crossorigin="anonymous" src="https://intercept-client.inmoment.eu/intercept-client-v1.26.0.js") ===
+
+
+=== Script 14 (attrs: type="text/javascript" async="" crossorigin="anonymous" src="https://intercept.inmoment.eu/intercept/v1/customJS/3038/9vcfOmZomP6BIyi2PSMuNPxFlterDdGOcv2SSllK5I=?loadTestCustomJS=false") ===
+
+
+=== Script 15 (attrs: id="fwa-lib" src="https://www.festo.com/media/fwalib/fwa_lib_latest.js" type="text/javascript" defer="") ===
+
+
+=== Script 16 (attrs: type="text/javascript" async="" crossorigin="anonymous" src="https://intercept.inmoment.eu/intercept/v1/3038/9vcfOmZomP6BIyi2PSMuNPxFlterDdGOcv2SSllK5I=/extra.js?testing=false") ===
+
+
+=== Script 17 (attrs: type="text/javascript" data-fwa_tml="Didomi_Observer") ===
+(function() {
+    var LOG_PREFIX = '||| FWA.Tml ||| - '; // ||| BEO_DIDOMI_TAG |||
+    var LOG_SCOPE = 'Didomi_Observer';
+    var LOG_ENABLED = Boolean(localStorage.getItem('fwaEconda_fwa.tmlDebugEnabled') === 'true');
+    var VENDOR_LIST_TO_CKECK = [
+        {id: 'c:akamaimp-gLdRijZ9' , observed: false, fired: false},
+        {id: 'c:awscloud-xCGrYeb6' , observed: false, fired: false},
+        {id: 'c:baiduads-az6PX7Br' , observed: false, fired: false},
+        {id: 'c:bingads-FRfAgPWG'  , observed: false, fired: false},
+        {id: 'c:econda-fhPCC3nF'   , observed: false, fired: false},
+        {id: 'c:eloqua-8bmnZJt7'   , observed: false, fired: false},
+        {id: 'c:facebook-PbWTNPdy' , observed: false, fired: false},
+        {id: 'c:festo-np2jDgmY'    , observed: false, fired: false},
+        {id: 'c:googleads-xdUQEq8d', observed: false, fired: false},
+        {id: 'c:hotjar-6fQi9f4t'   , observed: false, fired: false},
+        {id: 'c:kameleoon-XVFiz3Nj', observed: false, fired: false},
+        {id: 'c:leadinfo-rGbZKTah' , observed: false, fired: false},
+        {id: 'c:linkedin-Ty6BpKeC' , observed: false, fired: false},
+        {id: 'c:tealium-HYinKHY4'  , observed: false, fired: false},
+        {id: 'c:notavail-1111111'  , observed: false, fired: false}
+    ];
+
+    if (isDidomiSdkPresent()) {
+        fireVendors();
+        observeVendors();
+    } else {
+        if (isDidomiActive()) {
+            window.didomiOnReady = window.didomiOnReady || [];
+            windo
+... [TRUNCATED 8063 chars] ...
+
+
+=== Script 18 (attrs: type="text/javascript" data-fwa_tml="Didomi_Observer_ConsentAvailable") ===
+(function() {
+    var LOG_PREFIX = "||| FWA.Tml ||| - "; // ||| BEO_DIDOMI_TAG |||
+    var LOG_SCOPE = "Didomi_Observer_ConsentAvailable";
+    var LOG_ENABLED = Boolean(localStorage.getItem("fwaEconda_fwa.tmlDebugEnabled") === "true");
+    var TM_EVENT_NAME_DIDOMI_CONSENT_AVAILABLE = "didomiConsentAvailable";
+    var TM_EVENT_VENDOR_ANY = "any";
+    var FWA_FIRE_PAGE_EVENT_ONCE = false;
+
+    waitForFwaReady()
+        .then(waitForFwaPage)
+        .then(waitForDidomi)
+        .then(fwaListenPageEvent)
+        .then(didomiListenConsentChanged)
+        .catch((reason) => {if (LOG_ENABLED) { console.warn(LOG_PREFIX, LOG_SCOPE, "promisChain.catch", reason); }})
+        .finally(() => {if (LOG_ENABLED) { console.log(LOG_PREFIX, LOG_SCOPE, "promisChain.finally"); }})
+
+    // promises
+    function waitForFwaReady() {
+        return new Promise( function(resolve, reject) {
+            fwaLayer.onReady = fwaLayer.onReady || [];
+            fwaLayer.onReady.push(fwaOnReadyHandler);
+            function fwaOnReadyHandler() {
+                var msg = "==> fwaLayer is now ready";
+                // if (LOG_ENABLED) { console.log(LOG_PREFIX, LOG_SCOPE, "waitForFwaReady.fwaOnReadyHandler", msg); }
+                resolve(msg);
+            }
+        })
+    }
+
+    function waitForFwaPage(value) {
+        return new Promise( function(resolve, reject) {
+            // if (LOG_ENABLED) { console.log(LOG_PREFIX, LOG_SCOPE, "waitForFwaPage", "called"); }
+            fwaPageReadyAddListener("waitFo
+... [TRUNCATED 4706 chars] ...
+
+
+=== Script 19 (attrs: type="text/javascript" data-fwa_tml="Akamai_mPulse_Global") ===
+if (false) {console.log('||| FWA.Tml ||| - ', 'TAG FIRED', 'Akamai_mPulse_Global')};
+    (function() {
+        
+        // Boomerang Loader Snippet version 14
+        if (window.BOOMR && (window.BOOMR.version || window.BOOMR.snippetExecuted)) {
+            return;
+        }
+    
+        window.BOOMR = window.BOOMR || {};
+        window.BOOMR.snippetStart = new Date().getTime();
+        window.BOOMR.snippetExecuted = true;
+        window.BOOMR.snippetVersion = 14;
+    
+        window.BOOMR.url = "https://s.go-mpulse.net/boomerang/" +
+          "E6HW9-JERV9-ZFZZF-LWK4S-6D6CY";
+    
+        var // document.currentScript is supported in all browsers other than IE
+            where = document.currentScript || document.getElementsByTagName("script")[0],
+            // Parent element of the script we inject
+            parentNode = where.parentNode,
+            // Whether or not Preload method has worked
+            promoted = false,
+            // How long to wait for Preload to work before falling back to iframe method
+            LOADER_TIMEOUT = 3000;
+    
+        // Tells the browser to execute the Preloaded script by adding it to the DOM
+        function promote() {
+            if (promoted) {
+                return;
+            }
+    
+            var script = document.createElement("script");
+            script.id = "boomr-scr-as";
+            script.src = window.BOOMR.url;
+    
+            // Not really needed since dynamic scripts are async by default and the script is alre
+... [TRUNCATED 7844 chars] ...
+
+
+=== Script 20 (attrs: id="boomr-scr-as" src="https://s.go-mpulse.net/boomerang/E6HW9-JERV9-ZFZZF-LWK4S-6D6CY" async="") ===
+
+

@@ -1,0 +1,564 @@
+{% extends "base.html" %}
+
+{% block title %}Cào dữ liệu SICK theo Mã Sản Phẩm & Danh Mục{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4" style="max-width: 1200px;">
+    <!-- Header -->
+    <div class="header text-center mb-4">
+        <h1 class="fw-bold text-dark mb-2">
+            <span style="color: #005596;">SICK</span> Sensor Crawler
+        </h1>
+        <p class="text-muted fs-6">
+            Thu thập thông số kỹ thuật, hình ảnh WebP và Catalog PDF trực tiếp từ <strong>SICK.com</strong> theo <strong>Mã sản phẩm</strong> hoặc <strong>URL danh mục</strong>
+        </p>
+    </div>
+
+    <!-- Main Card -->
+    <div class="card shadow-sm border-0 rounded-4 mb-4">
+        <div class="card-body p-4">
+            <!-- Mode Switcher Tabs -->
+            <ul class="nav nav-pills nav-fill mb-4 p-1 bg-light rounded-3" id="modeTabs" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link active fw-semibold py-2" id="tab-code" data-mode="product_code" type="button" role="tab">
+                        <i class="bi bi-upc-scan me-2"></i> Cào theo Mã sản phẩm (Part Number / Type)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link fw-semibold py-2" id="tab-category" data-mode="category" type="button" role="tab">
+                        <i class="bi bi-folder2-open me-2"></i> Cào theo URL danh mục
+                    </button>
+                </li>
+            </ul>
+
+            <form id="sick-form" method="POST" action="{{ url_for('main.crawl_sick') }}" enctype="multipart/form-data">
+                <input type="hidden" name="crawl_mode" id="crawl_mode" value="product_code">
+
+                <!-- Mode 1: Product Codes -->
+                <div id="section-product-code" class="mode-section">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label for="product_codes" class="form-label fw-bold mb-0">
+                            Danh sách mã sản phẩm (Mỗi mã trên 1 dòng):
+                        </label>
+                        <div class="btn-group btn-group-sm">
+                            <button type="button" class="btn btn-outline-primary btn-sm" id="btn-sample-codes">
+                                <i class="bi bi-magic me-1"></i> Dán mã mẫu
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary btn-sm" id="btn-clean-codes">
+                                <i class="bi bi-filter me-1"></i> Xóa trùng & Chuẩn hóa
+                            </button>
+                        </div>
+                    </div>
+
+                    <textarea id="product_codes" name="product_codes" class="form-control font-monospace" rows="8"
+                        placeholder="Nhập mã sản phẩm SICK, ví dụ:&#10;GTB2S-N1451&#10;GTB2S-P5451&#10;GTB2S-P1451&#10;GTB2S-N1311&#10;GTB2S-N1331&#10;GTB2S-P5331&#10;1060203"></textarea>
+
+                    <div class="d-flex justify-content-between align-items-center mt-2 mb-3">
+                        <small class="text-muted" id="code-count-label">Đã nhập: <strong>0</strong> mã</small>
+                        <small class="text-muted"><i class="bi bi-info-circle me-1"></i>Hỗ trợ cả mã dòng sản phẩm (Model) và mã linh kiện (Part Number 7 số)</small>
+                    </div>
+
+                    <!-- File Upload Option -->
+                    <div class="card bg-light border-dashed mb-3">
+                        <div class="card-body py-2 px-3 d-flex flex-wrap align-items-center justify-content-between gap-2">
+                            <div class="d-flex align-items-center gap-2">
+                                <i class="bi bi-file-earmark-spreadsheet fs-4 text-success"></i>
+                                <div>
+                                    <span class="fw-semibold small d-block">Hoặc tải file chứa mã (.txt, .xlsx, .xls, .csv):</span>
+                                    <span class="text-muted small" id="file-chosen-text">Chưa chọn file nào</span>
+                                </div>
+                            </div>
+                            <div class="d-flex align-items-center gap-2">
+                                <input type="file" id="product_code_file" name="product_code_file" class="d-none" accept=".txt,.csv,.xlsx,.xls">
+                                <button type="button" class="btn btn-sm btn-outline-success" onclick="document.getElementById('product_code_file').click();">
+                                    <i class="bi bi-upload me-1"></i> Chọn file Excel / TXT
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger d-none" id="btn-clear-file">
+                                    <i class="bi bi-x-lg"></i>
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Mode 2: Category URLs -->
+                <div id="section-category" class="mode-section d-none">
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <label for="category_urls" class="form-label fw-bold mb-0">
+                            Danh sách URL danh mục (Mỗi URL trên 1 dòng):
+                        </label>
+                        <button type="button" class="btn btn-outline-primary btn-sm" id="btn-sample-urls">
+                            <i class="bi bi-magic me-1"></i> Dán URL mẫu
+                        </button>
+                    </div>
+
+                    <textarea id="category_urls" name="category_urls" class="form-control font-monospace" rows="8"
+                        placeholder="https://www.sick.com/ag/en/catalog/products/safety/c/g568264"></textarea>
+
+                    <div class="d-flex justify-content-between align-items-center mt-2 mb-3">
+                        <small class="text-muted" id="url-count-label">Đã nhập: <strong>0</strong> URL</small>
+                        <small class="text-muted">Nhập link danh mục sản phẩm từ SICK.com</small>
+                    </div>
+                </div>
+
+                <!-- Settings Row -->
+                <div class="row g-3 align-items-center pt-2 border-top">
+                    <div class="col-md-5">
+                        <label for="max_workers" class="form-label fw-semibold small mb-1">
+                            <i class="bi bi-cpu me-1"></i> Số luồng xử lý đồng thời:
+                        </label>
+                        <select id="max_workers" name="max_workers" class="form-select form-select-sm">
+                            <option value="3">3 luồng (Chậm, an toàn cho máy yếu)</option>
+                            <option value="5" selected>5 luồng (Khuyên dùng - Nhanh & ổn định)</option>
+                            <option value="8">8 luồng (Tốc độ cao)</option>
+                            <option value="12">12 luồng (Cực nhanh)</option>
+                        </select>
+                    </div>
+
+                    <div class="col-md-7">
+                        <label class="form-label fw-semibold small mb-1 d-block">
+                            <i class="bi bi-sliders me-1"></i> Tùy chọn thu thập:
+                        </label>
+                        <div class="form-check form-switch pt-1">
+                            <input class="form-check-input" type="checkbox" id="download_media" name="download_media" checked style="cursor: pointer;">
+                            <label class="form-check-label small" for="download_media" style="cursor: pointer;">
+                                Tải hình ảnh (WebP) và Catalog PDF (Bỏ chọn nếu chỉ muốn xuất file Excel siêu tốc)
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Submit / Actions -->
+                <div class="d-flex gap-2 mt-4 pt-2">
+                    <button type="submit" id="submit-btn" class="btn btn-primary px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2">
+                        <span class="btn-text"><i class="bi bi-play-circle-fill me-1"></i> Bắt đầu cào dữ liệu</span>
+                        <span class="btn-loading d-none">
+                            <span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span>
+                            <span class="ms-1">Đang xử lý dữ liệu...</span>
+                        </span>
+                    </button>
+                    <button type="button" id="clear-btn" class="btn btn-outline-secondary px-3 py-2">
+                        <i class="bi bi-eraser me-1"></i> Xóa tất cả
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Progress Section -->
+    <div id="progress-section" class="card shadow-sm border-0 rounded-4 mb-4" style="display: none;">
+        <div class="card-body p-4">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <h5 class="fw-bold text-dark mb-0">
+                    <i class="bi bi-activity text-primary me-2"></i>Tiến độ cào dữ liệu
+                </h5>
+                <div class="d-flex align-items-center gap-3">
+                    <span id="progress-text" class="text-muted small">Đang khởi tạo...</span>
+                    <span id="progress-percent" class="badge bg-primary fs-6 px-3 py-2 rounded-pill">0%</span>
+                </div>
+            </div>
+
+            <div class="progress mb-3" style="height: 12px; border-radius: 6px;">
+                <div id="progress-fill" class="progress-fill bg-primary progress-bar progress-bar-striped progress-bar-animated"
+                    role="progressbar" style="width: 0%; transition: width 0.3s ease;"></div>
+            </div>
+
+            <div class="terminal-container p-3 rounded-3 bg-dark text-light font-monospace small" style="max-height: 220px; overflow-y: auto;">
+                <div id="progress-log">
+                    <!-- Progress logs appear here -->
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="results-section" class="card shadow-sm border-0 rounded-4 mb-4" style="display: none;">
+        <div class="card-body p-4">
+            <div class="d-flex align-items-center justify-content-between mb-3">
+                <h5 class="fw-bold text-dark mb-0">
+                    <i class="bi bi-check-circle-fill text-success me-2"></i>Kết quả cào dữ liệu
+                </h5>
+                <span id="result-status-badge" class="badge bg-success px-3 py-2 rounded-pill">Hoàn thành</span>
+            </div>
+
+            <div class="row g-3 mb-4" id="stats-grid">
+                <div class="col-sm-6 col-md-3">
+                    <div class="p-3 bg-light rounded-3 text-center">
+                        <span class="text-muted small d-block">Tổng số sản phẩm</span>
+                        <span class="fs-4 fw-bold text-dark" id="stat-total">0</span>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <div class="p-3 bg-light rounded-3 text-center">
+                        <span class="text-muted small d-block">Tìm thấy thành công</span>
+                        <span class="fs-4 fw-bold text-success" id="stat-found">0</span>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <div class="p-3 bg-light rounded-3 text-center">
+                        <span class="text-muted small d-block">Không tìm thấy</span>
+                        <span class="fs-4 fw-bold text-danger" id="stat-not-found">0</span>
+                    </div>
+                </div>
+                <div class="col-sm-6 col-md-3">
+                    <div class="p-3 bg-light rounded-3 text-center">
+                        <span class="text-muted small d-block">Gói kết quả (ZIP)</span>
+                        <span class="fs-6 fw-bold text-primary text-truncate d-block" id="stat-zip">Sẵn sàng</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="d-flex flex-wrap gap-2">
+                <a id="download-link" href="#" class="btn btn-success px-4 py-2 fw-semibold d-inline-flex align-items-center gap-2">
+                    <i class="bi bi-cloud-arrow-down-fill fs-5"></i>
+                    <span>Tải xuống gói ZIP (Excel + Ảnh WebP + PDF)</span>
+                </a>
+                <button id="new-crawl-btn" class="btn btn-outline-primary px-3 py-2">
+                    <i class="bi bi-arrow-repeat me-1"></i> Cào danh sách mới
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions / Guide -->
+    <div class="card border-0 bg-light rounded-4">
+        <div class="card-body p-4">
+            <h6 class="fw-bold text-dark mb-3">
+                <i class="bi bi-question-circle text-primary me-2"></i>Hướng dẫn sử dụng SICK Crawler
+            </h6>
+            <div class="row g-3 small text-muted">
+                <div class="col-md-6">
+                    <div class="d-flex gap-2">
+                        <i class="bi bi-1-circle-fill text-primary"></i>
+                        <div>
+                            <strong class="text-dark d-block">Cào theo Mã sản phẩm:</strong>
+                            Dán danh sách mã sản phẩm (ví dụ: <code>GTB2S-N1451</code>, <code>GTB2S-P5451</code>) hoặc mã linh kiện 7 số (<code>1060203</code>). Hệ thống sẽ tìm chính xác qua công cụ tìm kiếm của SICK.com.
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex gap-2">
+                        <i class="bi bi-2-circle-fill text-primary"></i>
+                        <div>
+                            <strong class="text-dark d-block">Hỗ trợ file Excel / TXT:</strong>
+                            Bạn có thể tải trực tiếp file Excel (.xlsx) từ bảng báo giá hoặc BOM dự án. Hệ thống tự nhận diện cột mã sản phẩm.
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex gap-2">
+                        <i class="bi bi-3-circle-fill text-primary"></i>
+                        <div>
+                            <strong class="text-dark d-block">Dữ liệu trích xuất:</strong>
+                            Bao gồm Mã sản phẩm, Tên sản phẩm, Bảng HTML thông số kỹ thuật đầy đủ, Ảnh định dạng WebP chất lượng cao và Catalog PDF tiếng Anh chính hãng.
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6">
+                    <div class="d-flex gap-2">
+                        <i class="bi bi-4-circle-fill text-primary"></i>
+                        <div>
+                            <strong class="text-dark d-block">Xử lý không tìm thấy:</strong>
+                            Nếu mã sản phẩm không tồn tại trên SICK, hệ thống vẫn ghi nhận vào file Excel với trạng thái "Không tìm thấy" để bạn dễ dàng theo dõi.
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .border-dashed {
+        border: 2px dashed #ced4da;
+    }
+    .terminal-container {
+        border: 1px solid #333;
+        background-color: #1a1e24 !important;
+    }
+    .terminal-line {
+        line-height: 1.5;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        padding: 2px 0;
+    }
+    .nav-pills .nav-link {
+        color: #495057;
+        border-radius: 8px;
+        transition: all 0.2s ease;
+    }
+    .nav-pills .nav-link.active {
+        background-color: #005596;
+        color: white;
+        box-shadow: 0 4px 10px rgba(0, 85, 150, 0.25);
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function () {
+    const form = document.getElementById('sick-form');
+    const submitBtn = document.getElementById('submit-btn');
+    const clearBtn = document.getElementById('clear-btn');
+    const progressSection = document.getElementById('progress-section');
+    const resultsSection = document.getElementById('results-section');
+    const progressFill = document.getElementById('progress-fill');
+    const progressText = document.getElementById('progress-text');
+    const progressPercent = document.getElementById('progress-percent');
+    const progressLog = document.getElementById('progress-log');
+    const downloadLink = document.getElementById('download-link');
+    const newCrawlBtn = document.getElementById('new-crawl-btn');
+
+    const tabCode = document.getElementById('tab-code');
+    const tabCategory = document.getElementById('tab-category');
+    const crawlModeInput = document.getElementById('crawl_mode');
+    const sectionProductCode = document.getElementById('section-product-code');
+    const sectionCategory = document.getElementById('section-category');
+
+    const productCodesArea = document.getElementById('product_codes');
+    const categoryUrlsArea = document.getElementById('category_urls');
+    const codeCountLabel = document.getElementById('code-count-label');
+    const urlCountLabel = document.getElementById('url-count-label');
+
+    const fileInput = document.getElementById('product_code_file');
+    const fileChosenText = document.getElementById('file-chosen-text');
+    const btnClearFile = document.getElementById('btn-clear-file');
+
+    const statTotal = document.getElementById('stat-total');
+    const statFound = document.getElementById('stat-found');
+    const statNotFound = document.getElementById('stat-not-found');
+    const statZip = document.getElementById('stat-zip');
+
+    // Sample data from user request
+    const sampleProductCodes = [
+        "GTB2S-N1451",
+        "GTB2S-P5451",
+        "GTB2S-P1451",
+        "GTB2S-N1311",
+        "GTB2S-N1331",
+        "GTB2S-P5331",
+        "1060203"
+    ];
+
+    const sampleCategoryUrls = [
+        "https://www.sick.com/ag/en/catalog/products/safety/c/g568264"
+    ];
+
+    // Tab switching
+    tabCode.addEventListener('click', function () {
+        tabCode.classList.add('active');
+        tabCategory.classList.remove('active');
+        crawlModeInput.value = 'product_code';
+        sectionProductCode.classList.remove('d-none');
+        sectionCategory.classList.add('d-none');
+    });
+
+    tabCategory.addEventListener('click', function () {
+        tabCategory.classList.add('active');
+        tabCode.classList.remove('active');
+        crawlModeInput.value = 'category';
+        sectionCategory.classList.remove('d-none');
+        sectionProductCode.classList.add('d-none');
+    });
+
+    // Sample buttons
+    document.getElementById('btn-sample-codes').addEventListener('click', function () {
+        productCodesArea.value = sampleProductCodes.join('\n');
+        updateCounters();
+    });
+
+    document.getElementById('btn-clean-codes').addEventListener('click', function () {
+        const raw = productCodesArea.value;
+        const lines = raw.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+        const unique = Array.from(new Set(lines));
+        productCodesArea.value = unique.join('\n');
+        updateCounters();
+    });
+
+    document.getElementById('btn-sample-urls').addEventListener('click', function () {
+        categoryUrlsArea.value = sampleCategoryUrls.join('\n');
+        updateCounters();
+    });
+
+    // Line counters
+    function updateCounters() {
+        const cLines = productCodesArea.value.split(/\r?\n/).filter(l => l.trim().length > 0);
+        codeCountLabel.innerHTML = `Đã nhập: <strong>${cLines.length}</strong> mã`;
+
+        const uLines = categoryUrlsArea.value.split(/\r?\n/).filter(l => l.trim().length > 0);
+        urlCountLabel.innerHTML = `Đã nhập: <strong>${uLines.length}</strong> URL`;
+    }
+
+    productCodesArea.addEventListener('input', updateCounters);
+    categoryUrlsArea.addEventListener('input', updateCounters);
+
+    // File input handler (for text/csv preview)
+    fileInput.addEventListener('change', function () {
+        if (fileInput.files.length > 0) {
+            const file = fileInput.files[0];
+            fileChosenText.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+            btnClearFile.classList.remove('d-none');
+
+            // If it's a text file or csv, read lines into textarea for instant preview
+            if (file.name.endsWith('.txt') || file.name.endsWith('.csv')) {
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    const text = e.target.result;
+                    const lines = text.split(/\r?\n/).map(l => l.trim()).filter(l => l.length > 0);
+                    if (lines.length > 0) {
+                        productCodesArea.value = lines.join('\n');
+                        updateCounters();
+                    }
+                };
+                reader.readAsText(file);
+            }
+        } else {
+            fileChosenText.textContent = 'Chưa chọn file nào';
+            btnClearFile.classList.add('d-none');
+        }
+    });
+
+    btnClearFile.addEventListener('click', function () {
+        fileInput.value = '';
+        fileChosenText.textContent = 'Chưa chọn file nào';
+        btnClearFile.classList.add('d-none');
+    });
+
+    // Clear all
+    clearBtn.addEventListener('click', function () {
+        productCodesArea.value = '';
+        categoryUrlsArea.value = '';
+        fileInput.value = '';
+        fileChosenText.textContent = 'Chưa chọn file nào';
+        btnClearFile.classList.add('d-none');
+        updateCounters();
+    });
+
+    // New crawl button
+    newCrawlBtn.addEventListener('click', function () {
+        progressSection.style.display = 'none';
+        resultsSection.style.display = 'none';
+        form.reset();
+        fileChosenText.textContent = 'Chưa chọn file nào';
+        btnClearFile.classList.add('d-none');
+        updateCounters();
+    });
+
+    // Form submission
+    form.addEventListener('submit', function (e) {
+        e.preventDefault();
+
+        const currentMode = crawlModeInput.value;
+        const codeText = productCodesArea.value.trim();
+        const urlText = categoryUrlsArea.value.trim();
+        const hasFile = fileInput.files.length > 0;
+
+        if (currentMode === 'product_code' && !codeText && !hasFile) {
+            alert('Vui lòng nhập danh sách mã sản phẩm hoặc chọn file Excel/TXT!');
+            productCodesArea.focus();
+            return;
+        }
+
+        if (currentMode === 'category' && !urlText) {
+            alert('Vui lòng nhập ít nhất một URL danh mục SICK!');
+            categoryUrlsArea.focus();
+            return;
+        }
+
+        // Loading state
+        submitBtn.disabled = true;
+        submitBtn.querySelector('.btn-text').classList.add('d-none');
+        submitBtn.querySelector('.btn-loading').classList.remove('d-none');
+
+        // Show progress section
+        progressSection.style.display = 'block';
+        resultsSection.style.display = 'none';
+        progressFill.style.width = '0%';
+        progressPercent.textContent = '0%';
+        progressText.textContent = 'Đang gửi yêu cầu...';
+        progressLog.innerHTML = '';
+
+        const formData = new FormData(form);
+
+        fetch(form.action, {
+            method: 'POST',
+            body: formData
+        })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    showResults(data);
+                } else {
+                    showError(data.message || 'Có lỗi xảy ra khi cào dữ liệu.');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                showError('Lỗi kết nối máy chủ: ' + error.message);
+            })
+            .finally(() => {
+                submitBtn.disabled = false;
+                submitBtn.querySelector('.btn-text').classList.remove('d-none');
+                submitBtn.querySelector('.btn-loading').classList.add('d-none');
+            });
+    });
+
+    // Socket.IO for real-time progress updates
+    if (typeof io !== 'undefined') {
+        const socket = io();
+        socket.on('sick_progress', function (data) {
+            updateProgress(data.percent, data.message);
+        });
+    }
+
+    function updateProgress(percent, message) {
+        const p = Math.max(0, Math.min(100, parseInt(percent) || 0));
+        progressFill.style.width = p + '%';
+        progressPercent.textContent = p + '%';
+        progressText.textContent = message || 'Đang xử lý...';
+
+        const line = document.createElement('div');
+        line.className = 'terminal-line';
+        line.innerHTML = `<span class="text-secondary">[${new Date().toLocaleTimeString()}]</span> <span class="text-light">${message}</span>`;
+        progressLog.appendChild(line);
+        progressLog.parentElement.scrollTop = progressLog.parentElement.scrollHeight;
+    }
+
+    function showResults(data) {
+        progressSection.style.display = 'none';
+        resultsSection.style.display = 'block';
+
+        statTotal.textContent = data.total_products || 0;
+        statFound.textContent = data.found_count !== undefined ? data.found_count : (data.total_products || 0);
+        statNotFound.textContent = data.not_found_count !== undefined ? data.not_found_count : 0;
+        statZip.textContent = data.zip_file || 'Đã tạo file';
+
+        if (data.zip_file) {
+            downloadLink.href = `/download_sick/${encodeURIComponent(data.zip_file)}`;
+            downloadLink.style.display = 'inline-flex';
+        } else {
+            downloadLink.style.display = 'none';
+        }
+
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    function showError(message) {
+        progressSection.style.display = 'none';
+        resultsSection.style.display = 'block';
+
+        const badge = document.getElementById('result-status-badge');
+        badge.className = 'badge bg-danger px-3 py-2 rounded-pill';
+        badge.textContent = 'Gặp sự cố';
+
+        statTotal.textContent = '-';
+        statFound.textContent = '-';
+        statNotFound.textContent = '-';
+        statZip.textContent = message;
+
+        downloadLink.style.display = 'none';
+        resultsSection.scrollIntoView({ behavior: 'smooth' });
+    }
+
+    updateCounters();
+});
+</script>
+{% endblock %}

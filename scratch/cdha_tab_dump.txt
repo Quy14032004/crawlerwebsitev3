@@ -1,0 +1,200 @@
+--- MATCH AT 13142 ---
+         <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="cdha-crawler-tab" data-bs-toggle="tab" data-bs-target="#cdha-crawler"
+                        type="button" role="tab" aria-controls="cdha-crawler" aria-selected="false">
+                        <i class="bi bi-building"></i> Cào dữ liệu Cơ Điện Hải Âu
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="festo-crawler-tab" data-bs-toggle="tab" data-bs-target="#festo-crawler"
+                        type="button" role="tab" aria-controls="festo-crawler" aria-selected="false">
+                        <i class="bi bi-cpu"></i> Cào dữ liệu Festo Việt Nam
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="cognex-crawler-tab" data-bs-toggle="tab" data-bs-target="#cognex-crawler"
+                        type="button" role="tab" aria-controls="cognex-crawler" aria-selected="false">
+                        <i class="bi bi-camera"></i> Cào dữ liệu COGNEX (Thiên Trường PC)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="meanwell-crawler-tab" data-bs-toggle="tab" data-bs-target="#meanwell-crawler"
+                        type="button" role="tab" aria-controls="meanwell-crawler" aria-selected="false">
+                        <i class="bi bi-lightning"></i> Cào dữ liệu M
+--- MATCH AT 13198 ---
+               <button class="nav-link" id="cdha-crawler-tab" data-bs-toggle="tab" data-bs-target="#cdha-crawler"
+                        type="button" role="tab" aria-controls="cdha-crawler" aria-selected="false">
+                        <i class="bi bi-building"></i> Cào dữ liệu Cơ Điện Hải Âu
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="festo-crawler-tab" data-bs-toggle="tab" data-bs-target="#festo-crawler"
+                        type="button" role="tab" aria-controls="festo-crawler" aria-selected="false">
+                        <i class="bi bi-cpu"></i> Cào dữ liệu Festo Việt Nam
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="cognex-crawler-tab" data-bs-toggle="tab" data-bs-target="#cognex-crawler"
+                        type="button" role="tab" aria-controls="cognex-crawler" aria-selected="false">
+                        <i class="bi bi-camera"></i> Cào dữ liệu COGNEX (Thiên Trường PC)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="meanwell-crawler-tab" data-bs-toggle="tab" data-bs-target="#meanwell-crawler"
+                        type="button" role="tab" aria-controls="meanwell-crawler" aria-selected="false">
+                        <i class="bi bi-lightning"></i> Cào dữ liệu MeanWell
+                    </button>
+                </
+--- MATCH AT 13276 ---
+tab" data-bs-target="#cdha-crawler"
+                        type="button" role="tab" aria-controls="cdha-crawler" aria-selected="false">
+                        <i class="bi bi-building"></i> Cào dữ liệu Cơ Điện Hải Âu
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="festo-crawler-tab" data-bs-toggle="tab" data-bs-target="#festo-crawler"
+                        type="button" role="tab" aria-controls="festo-crawler" aria-selected="false">
+                        <i class="bi bi-cpu"></i> Cào dữ liệu Festo Việt Nam
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="cognex-crawler-tab" data-bs-toggle="tab" data-bs-target="#cognex-crawler"
+                        type="button" role="tab" aria-controls="cognex-crawler" aria-selected="false">
+                        <i class="bi bi-camera"></i> Cào dữ liệu COGNEX (Thiên Trường PC)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="meanwell-crawler-tab" data-bs-toggle="tab" data-bs-target="#meanwell-crawler"
+                        type="button" role="tab" aria-controls="meanwell-crawler" aria-selected="false">
+                        <i class="bi bi-lightning"></i> Cào dữ liệu MeanWell
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                
+--- MATCH AT 126748 ---
+          <!-- Tab cào dữ liệu từ Cơ Điện Hải Âu -->
+                <div class="tab-pane fade" id="cdha-crawler" role="tabpanel" aria-labelledby="cdha-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu sản phẩm từ Cơ Điện Hải Âu</h4>
+
+                        <div class="card mt-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Cào dữ liệu Cơ Điện Hải Âu</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('main.crawl_codienhaiau') }}" method="post">
+                                    <div class="form-group">
+                                        <label for="category_urls">Nhập URL danh mục hoặc sản phẩm (<b>mỗi URL một
+                                                dòng</b>):</label>
+                                        <textarea class="form-control" id="category_urls" name="category_urls" rows="5"
+                                            required></textarea>
+                                        <small class="form-text text-muted">Ví dụ:
+                                            https://codienhaiau.com/category/abb/acb-abb/,
+                                            https://codienhaiau.com/product/1sda073558r1/</small>
+                                    </div>
+
+                                    <!-- Thêm tùy chọn nâng cao -->
+                                    <div class="form-row">
+                                  
+--- MATCH AT 126795 ---
+u -->
+                <div class="tab-pane fade" id="cdha-crawler" role="tabpanel" aria-labelledby="cdha-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu sản phẩm từ Cơ Điện Hải Âu</h4>
+
+                        <div class="card mt-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Cào dữ liệu Cơ Điện Hải Âu</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('main.crawl_codienhaiau') }}" method="post">
+                                    <div class="form-group">
+                                        <label for="category_urls">Nhập URL danh mục hoặc sản phẩm (<b>mỗi URL một
+                                                dòng</b>):</label>
+                                        <textarea class="form-control" id="category_urls" name="category_urls" rows="5"
+                                            required></textarea>
+                                        <small class="form-text text-muted">Ví dụ:
+                                            https://codienhaiau.com/category/abb/acb-abb/,
+                                            https://codienhaiau.com/product/1sda073558r1/</small>
+                                    </div>
+
+                                    <!-- Thêm tùy chọn nâng cao -->
+                                    <div class="form-row">
+                                        <div class="form-group col-md-6">
+       
+--- MATCH AT 135023 ---
+                       </div>
+
+                                <form action="{{ url_for('main.crawl_cdha_catalog') }}" method="post"
+                                      id="cdha-catalog-form">
+                                    <!-- URL danh mục -->
+                                    <div class="mb-3">
+                                        <label for="catalog_category_urls" class="form-label fw-semibold">
+                                            <i class="bi bi-link-45deg"></i> URL danh mục cần cào catalog
+                                            (<b>mỗi URL một dòng</b>):
+                                        </label>
+                                        <textarea class="form-control font-monospace" id="catalog_category_urls"
+                                            name="catalog_category_urls" rows="4" required
+                                            placeholder="https://codienhaiau.com/category/abb/acb-abb/&#10;https://codienhaiau.com/category/ls/bien-tan-ls/"></textarea>
+                                        <small class="text-muted">
+                                            Hệ thống tự động duyệt qua tất cả trang sản phẩm trong danh mục,
+                                            tìm file PDF catalog được nhúng bằng plugin <code>pdfemb-viewer</code>,
+                                            tải về và upload lên Google Drive.
+                                        </small>
+                                    </div>
+
+                                    <div class="row g-3 mb-3">
+                                        <!-- Số worker -->
+
+--- MATCH AT 135098 ---
+="{{ url_for('main.crawl_cdha_catalog') }}" method="post"
+                                      id="cdha-catalog-form">
+                                    <!-- URL danh mục -->
+                                    <div class="mb-3">
+                                        <label for="catalog_category_urls" class="form-label fw-semibold">
+                                            <i class="bi bi-link-45deg"></i> URL danh mục cần cào catalog
+                                            (<b>mỗi URL một dòng</b>):
+                                        </label>
+                                        <textarea class="form-control font-monospace" id="catalog_category_urls"
+                                            name="catalog_category_urls" rows="4" required
+                                            placeholder="https://codienhaiau.com/category/abb/acb-abb/&#10;https://codienhaiau.com/category/ls/bien-tan-ls/"></textarea>
+                                        <small class="text-muted">
+                                            Hệ thống tự động duyệt qua tất cả trang sản phẩm trong danh mục,
+                                            tìm file PDF catalog được nhúng bằng plugin <code>pdfemb-viewer</code>,
+                                            tải về và upload lên Google Drive.
+                                        </small>
+                                    </div>
+
+                                    <div class="row g-3 mb-3">
+                                        <!-- Số worker -->
+                                        <div class="col-md-5">
+            
+--- MATCH AT 143155 ---
+rn;
+                    var socket = io();
+
+                    var form = document.getElementById('cdha-catalog-form');
+                    if (!form) return;
+
+                    form.addEventListener('submit', function() {
+                        document.getElementById('catalog-progress-area').style.display = 'block';
+                        document.getElementById('catalog-submit-btn').disabled = true;
+                        document.getElementById('catalog-submit-btn').innerHTML =
+                            '<span class="spinner-border spinner-border-sm me-1"></span> Đang xử lý...';
+                    });
+
+                    socket.on('catalog_progress', function(data) {
+                        var pct = data.percent || 0;
+                        var bar = document.getElementById('catalog-progress-bar');
+                        var msg = document.getElementById('catalog-status-msg');
+                        if (bar) {
+                            bar.style.width = pct + '%';
+                            bar.textContent = pct + '%';
+                        }
+                        if (msg) msg.textContent = data.message || '';
+
+                        if (data.done !== undefined) {
+                            document.getElementById('catalog-stats-row').style.display = 'flex';
+                            document.getElementById('cs-done').textContent  = data.done || 0;
+                            document.getElementById('cs-pdf').textContent   = data.pdf_downloaded || 0;
+                            document.getElementById('cs-drive').textContent = data.gdrive_upload

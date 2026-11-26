@@ -4,398 +4,526 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>HopLong Crawler - Haiphongtech.vn</title>
+    <title>HopLong Crawler – Haiphongtech.vn</title>
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
     <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <style>
+        :root {
+            --primary: #6c63ff;
+            --primary-dark: #5a52e0;
+            --accent: #00d4aa;
+            --bg: #0f0f1a;
+            --card-bg: #1a1a2e;
+            --card-border: #2a2a4a;
+            --text: #e8e8f0;
+            --text-muted: #8888aa;
+            --success: #00d4aa;
+            --danger: #ff4d6d;
+            --warning: #ffa726;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+        }
+
+        .page-header {
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+            padding: 2rem 0;
+            border-bottom: 1px solid var(--card-border);
+            margin-bottom: 2rem;
+        }
+
+        .page-header h1 {
+            font-size: 1.8rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.25rem;
+        }
+
+        .page-header .subtitle {
+            color: var(--text-muted);
+            font-size: 0.9rem;
+        }
+
+        .card-dark {
+            background: var(--card-bg);
+            border: 1px solid var(--card-border);
+            border-radius: 12px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .card-dark h5 {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--primary);
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            margin-bottom: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        label {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 0.4rem;
+            display: block;
+        }
+
+        .form-control,
+        .form-select {
+            background: #0f0f1a;
+            border: 1px solid var(--card-border);
+            color: var(--text);
+            border-radius: 8px;
+            font-size: 0.9rem;
+            transition: border-color .2s;
+        }
+
+        .form-control:focus,
+        .form-select:focus {
+            background: #0f0f1a;
+            color: var(--text);
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(108, 99, 255, .15);
+        }
+
+        textarea.form-control {
+            resize: vertical;
+            min-height: 130px;
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+
+        .btn-primary-grad {
+            background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+            border: none;
+            color: #fff;
+            font-weight: 600;
+            border-radius: 8px;
+            padding: 0.6rem 1.5rem;
+            transition: opacity .2s, transform .1s;
+        }
+
+        .btn-primary-grad:hover {
+            opacity: .88;
+            transform: translateY(-1px);
+            color: #fff;
+        }
+
+        .btn-primary-grad:active {
+            transform: none;
+        }
+
+        .btn-outline-light {
+            border-radius: 8px;
+            font-size: 0.85rem;
+            padding: 0.4rem 1rem;
+        }
+
+        /* Progress */
+        #progressCard {
+            display: none;
+        }
+
+        .progress {
+            background: #2a2a4a;
+            border-radius: 999px;
+            height: 10px;
+            overflow: hidden;
+        }
+
+        .progress-bar {
+            background: linear-gradient(90deg, var(--primary), var(--accent));
+            border-radius: 999px;
+            transition: width .4s ease;
+        }
+
+        #progressMessage {
+            font-weight: 600;
+            margin-top: 0.5rem;
+        }
+
+        #progressDetail {
+            color: var(--text-muted);
+            font-size: 0.82rem;
+        }
+
+        /* Alert cards */
+        #errorCard,
+        #successCard {
+            display: none;
+        }
+
+        .alert-custom {
+            border-radius: 10px;
+            padding: 1rem 1.25rem;
+            border: 1px solid;
+        }
+
+        .alert-error {
+            background: rgba(255, 77, 109, .1);
+            border-color: var(--danger);
+        }
+
+        .alert-success {
+            background: rgba(0, 212, 170, .1);
+            border-color: var(--success);
+        }
+
+        /* Results table */
+        #resultsCard {
+            display: none;
+        }
+
+        .result-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            background: #12122a;
+            border: 1px solid var(--card-border);
+            border-radius: 10px;
+            padding: 0.9rem 1.2rem;
+            margin-bottom: 0.6rem;
+            transition: border-color .2s;
+        }
+
+        .result-row:hover {
+            border-color: var(--primary);
+        }
+
+        .result-name {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text);
+        }
+
+        .result-meta {
+            font-size: 0.78rem;
+            color: var(--text-muted);
+            margin-top: 2px;
+        }
+
+        .badge-stat {
+            display: inline-block;
+            background: rgba(108, 99, 255, .2);
+            color: var(--primary);
+            font-size: 0.75rem;
+            font-weight: 600;
+            border-radius: 999px;
+            padding: 0.2rem 0.7rem;
+            margin-right: 0.3rem;
+        }
+
+        .badge-stat.green {
+            background: rgba(0, 212, 170, .15);
+            color: var(--accent);
+        }
+
+        .badge-stat.orange {
+            background: rgba(255, 167, 38, .15);
+            color: var(--warning);
+        }
+
+        .btn-download {
+            background: linear-gradient(135deg, var(--accent), #00b389);
+            border: none;
+            color: #0f0f1a;
+            font-weight: 700;
+            font-size: 0.82rem;
+            border-radius: 8px;
+            padding: 0.45rem 1rem;
+            white-space: nowrap;
+            transition: opacity .2s;
+        }
+
+        .btn-download:hover {
+            opacity: .85;
+            color: #0f0f1a;
+        }
+
+        /* Tip box */
+        .tip-box {
+            background: rgba(108, 99, 255, .08);
+            border-left: 3px solid var(--primary);
+            border-radius: 0 8px 8px 0;
+            padding: 0.8rem 1rem;
+            font-size: 0.82rem;
+            color: var(--text-muted);
+            margin-bottom: 0.8rem;
+        }
+
+        .tip-box code {
+            color: var(--accent);
+            background: rgba(0, 212, 170, .1);
+            padding: 1px 5px;
+            border-radius: 4px;
+        }
+
+        /* Spinner */
+        .spin {
+            animation: spin 1s linear infinite;
+            display: inline-block;
+        }
+
+        @keyframes spin {
+            from {
+                transform: rotate(0)
+            }
+
+            to {
+                transform: rotate(360deg)
+            }
+        }
+    </style>
 </head>
 
-<body class="bg-light">
-    <div class="container py-4">
-        <div class="card mb-3">
-            <div class="card-body d-flex justify-content-between align-items-center">
+<body>
+
+    <div class="page-header">
+        <div class="container">
+            <div class="d-flex justify-content-between align-items-center">
                 <div>
-                    <h3 class="mb-1">HopLong Product Crawler</h3>
-                    <div class="text-muted">Cào dữ liệu hoplongtech.com theo danh mục và hãng</div>
+                    <h1>🔧 HopLong Product Crawler</h1>
+                    <div class="subtitle">Cào dữ liệu hoplongtech.com — phân folder theo hãng, đa luồng</div>
                 </div>
-                <div>
-                    <a class="btn btn-outline-secondary" href="/">Trang chủ</a>
-                </div>
+                <a href="/" class="btn btn-outline-light">← Trang chủ</a>
             </div>
-        </div>
-
-        <div class="card mb-3">
-            <div class="card-header">1) Chọn danh mục</div>
-            <div class="card-body">
-                <div class="row g-2 align-items-center">
-                    <div class="col-md-8">
-                        <select id="categorySelect" class="form-select">
-                            <option value="">-- Đang tải danh mục... --</option>
-                        </select>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <button id="reloadCategories" class="btn btn-secondary">Tải lại danh mục</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card mb-3">
-            <div class="card-header">2) Chọn danh mục con</div>
-            <div class="card-body">
-                <div class="row g-2 align-items-center">
-                    <div class="col-md-8">
-                        <div id="subcategoryContainer" class="d-flex flex-wrap gap-2"></div>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <button id="loadSubcategories" class="btn btn-success">Tải danh mục con</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card mb-3">
-            <div class="card-header">3) Chọn hãng sản xuất</div>
-            <div class="card-body">
-                <div class="row g-2 align-items-center">
-                    <div class="col-md-8">
-                        <div id="brandContainer" class="d-flex flex-wrap gap-2"></div>
-                    </div>
-                    <div class="col-md-4 text-end">
-                        <button id="loadBrands" class="btn btn-info">Tải hãng</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div class="card mb-3">
-            <div class="card-header">4) Thiết lập & Bắt đầu</div>
-            <div class="card-body">
-                <div class="row g-3">
-                    <div class="col-md-3">
-                        <label class="form-label">Số luồng</label>
-                        <input id="maxWorkers" type="number" class="form-control" value="10" min="1" max="32">
-                    </div>
-                    <div class="col-md-9 d-flex align-items-end justify-content-end gap-2">
-                        <button id="startBtn" class="btn btn-primary">Bắt đầu cào</button>
-                        <button id="resultsBtn" class="btn btn-outline-primary">Xem kết quả</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <div id="progressCard" class="card mb-3" style="display:none;">
-            <div class="card-header">Tiến trình</div>
-            <div class="card-body">
-                <div class="progress mb-2">
-                    <div id="progressBar" class="progress-bar" style="width:0%">0%</div>
-                </div>
-                <div id="progressMessage" class="fw-semibold">Sẵn sàng...</div>
-                <div id="progressDetail" class="text-muted small"></div>
-            </div>
-        </div>
-
-        <div id="errorCard" class="card mb-3" style="display:none;">
-            <div class="card-header bg-danger text-white">Lỗi</div>
-            <div class="card-body">
-                <div id="errorMessage" class="fw-semibold text-danger"></div>
-                <div id="errorDetails" class="text-muted small mt-2" style="display:none;">
-                    <strong>Chi tiết lỗi:</strong>
-                    <pre class="bg-light p-2 mt-1" style="font-size:12px; max-height:200px; overflow-y:auto;"></pre>
-                </div>
-                <div class="mt-2">
-                    <button id="showErrorDetails" class="btn btn-sm btn-outline-danger">Xem chi tiết</button>
-                    <button id="hideError" class="btn btn-sm btn-secondary">Ẩn</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="successCard" class="card mb-3" style="display:none;">
-            <div class="card-header bg-success text-white">Thành công</div>
-            <div class="card-body">
-                <div id="successMessage" class="fw-semibold text-success"></div>
-                <div id="successStats" class="text-muted small mt-2"></div>
-                <div class="mt-2">
-                    <button id="hideSuccess" class="btn btn-sm btn-secondary">Ẩn</button>
-                </div>
-            </div>
-        </div>
-
-        <div id="resultsCard" class="card" style="display:none;">
-            <div class="card-header">Kết quả gần đây</div>
-            <div class="card-body" id="resultsContainer"></div>
         </div>
     </div>
 
+    <div class="container pb-5">
+
+        <!-- Input Form -->
+        <div class="card-dark">
+            <h5>📋 Nhập URL danh mục</h5>
+            <div class="tip-box">
+                Nhập 1 hoặc nhiều URL danh mục hoplongtech.com, mỗi dòng 1 URL.<br>
+                Ví dụ: <code>https://hoplongtech.com/category/cam-bien-quang</code>
+            </div>
+            <div class="mb-3">
+                <label>URL danh mục (1 dòng = 1 URL)</label>
+                <textarea id="urlInput" class="form-control" rows="5"
+                    placeholder="https://hoplongtech.com/category/cam-bien-quang&#10;https://hoplongtech.com/category/rele-dien&#10;https://hoplongtech.com/category/dong-ho-van-nang"></textarea>
+            </div>
+            <div class="row g-3 align-items-end">
+                <div class="col-md-3">
+                    <label>Số luồng xử lý (threads)</label>
+                    <input id="maxWorkers" type="number" class="form-control" value="14" min="1" max="32">
+                </div>
+                <div class="col-md-3">
+                    <label>Số trang tối đa / danh mục (0 = tất cả)</label>
+                    <input id="maxPages" type="number" class="form-control" value="0" min="0" max="5000" title="Đặt 0 để cào toàn bộ các trang của danh mục">
+                </div>
+                <div class="col-md-6 d-flex gap-2 justify-content-end">
+                    <button id="resultsBtn" class="btn btn-outline-light">📂 Kết quả đã lưu</button>
+                    <button id="startBtn" class="btn btn-primary-grad">🚀 Bắt đầu cào dữ liệu</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Progress -->
+        <div class="card-dark" id="progressCard">
+            <h5>⚡ Tiến trình</h5>
+            <div class="progress mb-2">
+                <div id="progressBar" class="progress-bar" style="width:0%" role="progressbar"></div>
+            </div>
+            <div class="d-flex justify-content-between">
+                <div>
+                    <div id="progressMessage">Đang khởi động...</div>
+                    <div id="progressDetail"></div>
+                </div>
+                <div id="progressPct" style="font-size:1.2rem;font-weight:700;color:var(--primary)">0%</div>
+            </div>
+        </div>
+
+        <!-- Error -->
+        <div id="errorCard" class="alert-custom alert-error mb-3">
+            <div class="d-flex justify-content-between align-items-start">
+                <div>
+                    <div style="font-weight:700;color:var(--danger)">❌ Có lỗi xảy ra</div>
+                    <div id="errorMessage" style="font-size:.9rem;margin-top:.25rem"></div>
+                    <pre id="errorDetails"
+                        style="display:none;font-size:.75rem;margin-top:.5rem;color:var(--text-muted);white-space:pre-wrap"></pre>
+                </div>
+                <div class="d-flex gap-2 ms-3">
+                    <button
+                        onclick="document.getElementById('errorDetails').style.display=document.getElementById('errorDetails').style.display==='none'?'block':'none'"
+                        class="btn btn-outline-light btn-sm">Chi tiết</button>
+                    <button onclick="document.getElementById('errorCard').style.display='none'"
+                        class="btn btn-outline-light btn-sm">✕</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Success -->
+        <div id="successCard" class="alert-custom alert-success mb-3">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <div style="font-weight:700;color:var(--success)">✅ Cào dữ liệu hoàn thành!</div>
+                    <div id="successMessage" style="font-size:.85rem;margin-top:.25rem;color:var(--text-muted)"></div>
+                </div>
+                <button onclick="document.getElementById('successCard').style.display='none'"
+                    class="btn btn-outline-light btn-sm ms-3">✕</button>
+            </div>
+        </div>
+
+        <!-- Results -->
+        <div class="card-dark" id="resultsCard">
+            <h5>📦 Kết quả đã lưu</h5>
+            <div id="resultsContainer">
+                <div style="color:var(--text-muted)">Đang tải...</div>
+            </div>
+        </div>
+
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
     <script>
-        let socket = null;
-        document.addEventListener('DOMContentLoaded', () => {
-            socket = io();
-            socket.on('progress_update', (data) => updateProgress(data.percent, data.message, data.detail || ''));
-            socket.on('crawler_completed', (data) => {
-                updateProgress(100, data.message || 'Hoàn thành', '');
-                loadResults();
-                showSuccessMessage(data.message || 'Cào dữ liệu hoàn thành!', data.stats);
-            });
-            socket.on('crawler_error', (data) => {
-                showErrorMessage(data.message || 'Có lỗi xảy ra trong quá trình cào dữ liệu', data.error_details);
-                updateProgress(0, 'Lỗi', data.message || '');
-            });
+        const socket = io();
 
-            document.getElementById('reloadCategories').addEventListener('click', loadCategories);
-            document.getElementById('loadSubcategories').addEventListener('click', loadSubcategories);
-            document.getElementById('loadBrands').addEventListener('click', loadBrands);
-            document.getElementById('startBtn').addEventListener('click', startCrawl);
-            document.getElementById('resultsBtn').addEventListener('click', loadResults);
+        // Socket listeners
+        socket.on('progress_update', (d) => {
+            const pct = Math.round(d.percent || 0);
+            document.getElementById('progressBar').style.width = pct + '%';
+            document.getElementById('progressPct').textContent = pct + '%';
+            document.getElementById('progressMessage').textContent = d.message || '';
+            document.getElementById('progressDetail').textContent = d.detail || '';
+            document.getElementById('progressCard').style.display = 'block';
+        });
 
-            // Error và Success card event listeners
-            document.getElementById('showErrorDetails').addEventListener('click', () => {
-                const details = document.getElementById('errorDetails');
-                details.style.display = details.style.display === 'none' ? 'block' : 'none';
-            });
-            document.getElementById('hideError').addEventListener('click', () => {
-                document.getElementById('errorCard').style.display = 'none';
-            });
-            document.getElementById('hideSuccess').addEventListener('click', () => {
-                document.getElementById('successCard').style.display = 'none';
-            });
-
-            loadCategories();
+        socket.on('crawler_completed', (d) => {
+            document.getElementById('progressBar').style.width = '100%';
+            document.getElementById('progressPct').textContent = '100%';
+            document.getElementById('progressMessage').textContent = d.message || 'Hoàn thành!';
+            document.getElementById('progressDetail').textContent = '';
+            const stats = d.stats || {};
+            let msg = '';
+            if (stats.products_ok != null) msg += `${stats.products_ok} sản phẩm `;
+            if (stats.images_ok != null) msg += `| ${stats.images_ok} ảnh `;
+            if (stats.categories != null) msg += `| ${stats.categories} danh mục`;
+            document.getElementById('successMessage').textContent = msg;
+            document.getElementById('successCard').style.display = 'block';
+            document.getElementById('errorCard').style.display = 'none';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('startBtn').textContent = '🚀 Bắt đầu cào dữ liệu';
             loadResults();
         });
 
-        async function loadCategories() {
-            const sel = document.getElementById('categorySelect');
-            sel.innerHTML = '<option value="">-- Đang tải danh mục... --</option>';
-            try {
-                const resp = await fetch('/hoplong/categories');
-                const data = await resp.json();
-                sel.innerHTML = '<option value="">-- Chọn danh mục --</option>';
-                (data.categories || []).forEach(c => {
-                    const opt = document.createElement('option');
-                    opt.value = c.url; opt.textContent = c.name;
-                    sel.appendChild(opt);
-                });
-            } catch (e) {
-                sel.innerHTML = '<option value="">-- Lỗi tải danh mục --</option>';
-            }
-        }
+        socket.on('crawler_error', (d) => {
+            document.getElementById('errorMessage').textContent = d.message || 'Lỗi không xác định';
+            document.getElementById('errorDetails').textContent = d.error_details || '';
+            document.getElementById('errorCard').style.display = 'block';
+            document.getElementById('successCard').style.display = 'none';
+            document.getElementById('startBtn').disabled = false;
+            document.getElementById('startBtn').textContent = '🚀 Bắt đầu cào dữ liệu';
+        });
 
-        async function loadSubcategories() {
-            const sel = document.getElementById('categorySelect');
-            const url = sel.value;
-            const box = document.getElementById('subcategoryContainer');
-            box.innerHTML = '';
-            if (!url) {
-                alert('Vui lòng chọn danh mục chính trước');
+        // Start crawl
+        document.getElementById('startBtn').addEventListener('click', async () => {
+            const raw = document.getElementById('urlInput').value.trim();
+            if (!raw) { alert('Vui lòng nhập ít nhất 1 URL danh mục!'); return; }
+
+            const category_urls = raw.split('\n')
+                .map(l => l.trim()).filter(l => l && l.startsWith('http'));
+
+            if (!category_urls.length) {
+                alert('Không tìm thấy URL hợp lệ. URL phải bắt đầu bằng http/https.');
                 return;
             }
-
-            box.innerHTML = '<span class="text-info">Đang tải danh mục con...</span>';
-
-            try {
-                const resp = await fetch('/hoplong/subcategories?category=' + encodeURIComponent(url));
-                const data = await resp.json();
-                box.innerHTML = '';
-
-                if (!data.success) {
-                    box.innerHTML = '<span class="text-danger">Lỗi: ' + (data.message || 'Không thể tải danh mục con') + '</span>';
-                    return;
-                }
-
-                (data.subcategories || []).forEach(sc => {
-                    const lbl = document.createElement('label');
-                    lbl.className = 'btn btn-outline-primary btn-sm';
-                    lbl.style.marginRight = '6px';
-                    lbl.style.marginBottom = '6px';
-
-                    const cb = document.createElement('input');
-                    cb.type = 'checkbox';
-                    cb.value = sc.url;
-                    cb.className = 'me-1';
-
-                    lbl.appendChild(cb);
-                    lbl.appendChild(document.createTextNode(sc.name + ' (' + sc.product_count + ')'));
-                    box.appendChild(lbl);
-                });
-
-                if ((data.subcategories || []).length === 0) {
-                    box.innerHTML = '<span class="text-warning">Không tìm thấy danh mục con nào.</span>';
-                }
-            } catch (e) {
-                box.innerHTML = '<span class="text-danger">Lỗi tải danh mục con: ' + e.message + '</span>';
-            }
-        }
-
-        async function loadBrands() {
-            const selectedSubcategories = getSelectedSubcategories();
-            const box = document.getElementById('brandContainer');
-            box.innerHTML = '';
-
-            if (selectedSubcategories.length === 0) {
-                alert('Vui lòng chọn ít nhất một danh mục con trước');
-                return;
+            const invalid = category_urls.filter(u => !u.includes('hoplongtech.com'));
+            if (invalid.length) {
+                if (!confirm(`${invalid.length} URL không thuộc hoplongtech.com sẽ bị bỏ qua. Tiếp tục?`)) return;
             }
 
-            box.innerHTML = '<span class="text-info">Đang tải hãng sản xuất...</span>';
-
-            try {
-                // Lấy brands từ subcategory đầu tiên (có thể mở rộng sau)
-                const firstSubcategory = selectedSubcategories[0];
-                const resp = await fetch('/hoplong/brands?category=' + encodeURIComponent(firstSubcategory));
-                const data = await resp.json();
-                box.innerHTML = '';
-
-                if (!data.success) {
-                    box.innerHTML = '<span class="text-danger">Lỗi: ' + (data.message || 'Không thể tải hãng') + '</span>';
-                    return;
-                }
-
-                (data.brands || []).forEach(b => {
-                    const lbl = document.createElement('label');
-                    lbl.className = 'btn btn-outline-secondary btn-sm';
-                    lbl.style.marginRight = '6px';
-                    lbl.style.marginBottom = '6px';
-
-                    const cb = document.createElement('input');
-                    cb.type = 'checkbox';
-                    cb.value = b;
-                    cb.className = 'me-1';
-
-                    lbl.appendChild(cb);
-                    lbl.appendChild(document.createTextNode(b));
-                    box.appendChild(lbl);
-                });
-
-                if ((data.brands || []).length === 0) {
-                    box.innerHTML = '<span class="text-warning">Không tìm thấy hãng nào.</span>';
-                }
-            } catch (e) {
-                box.innerHTML = '<span class="text-danger">Lỗi tải hãng: ' + e.message + '</span>';
-            }
-        }
-
-        function getSelectedSubcategories() {
-            return Array.from(document.querySelectorAll('#subcategoryContainer input[type=checkbox]:checked')).map(x => x.value);
-        }
-
-        function getSelectedBrands() {
-            return Array.from(document.querySelectorAll('#brandContainer input[type=checkbox]:checked')).map(x => x.value);
-        }
-
-        async function startCrawl() {
-            const category = document.getElementById('categorySelect').value;
-            const subcategories = getSelectedSubcategories();
-            const brands = getSelectedBrands();
-            const maxWorkers = parseInt(document.getElementById('maxWorkers').value || '10', 10);
-
-            if (!category) { alert('Chọn danh mục chính'); return; }
-            if (!subcategories.length) { alert('Chọn ít nhất 1 danh mục con'); return; }
-            if (!brands.length) { alert('Chọn ít nhất 1 hãng'); return; }
+            const max_workers = parseInt(document.getElementById('maxWorkers').value || '14', 10);
+            const max_pages = parseInt(document.getElementById('maxPages').value || '0', 10);
+            const btn = document.getElementById('startBtn');
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spin">⏳</span> Đang chạy...';
 
             document.getElementById('progressCard').style.display = 'block';
-            updateProgress(0, 'Bắt đầu...', '');
+            document.getElementById('errorCard').style.display = 'none';
+            document.getElementById('successCard').style.display = 'none';
+            document.getElementById('progressBar').style.width = '0%';
+            document.getElementById('progressPct').textContent = '0%';
+            document.getElementById('progressMessage').textContent = 'Đang khởi động...';
+            document.getElementById('progressDetail').textContent = '';
 
-            // Gửi subcategories thay vì category chính
-            const resp = await fetch('/crawl-hoplong', {
-                method: 'POST', headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    category: subcategories[0], // Sử dụng subcategory đầu tiên
-                    subcategories: subcategories,
-                    brands: brands,
-                    max_workers: maxWorkers
-                })
-            });
-            const data = await resp.json();
-            if (!data.success) alert(data.message || 'Lỗi khởi chạy crawler');
-        }
+            try {
+                const resp = await fetch('/crawl-hoplong', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ category_urls, max_workers, max_pages })
+                });
+                const data = await resp.json();
+                if (!data.success) {
+                    document.getElementById('errorMessage').textContent = data.message || 'Lỗi khởi chạy crawler';
+                    document.getElementById('errorCard').style.display = 'block';
+                    btn.disabled = false;
+                    btn.textContent = '🚀 Bắt đầu cào dữ liệu';
+                }
+            } catch (e) {
+                document.getElementById('errorMessage').textContent = 'Lỗi kết nối: ' + e.message;
+                document.getElementById('errorCard').style.display = 'block';
+                btn.disabled = false;
+                btn.textContent = '🚀 Bắt đầu cào dữ liệu';
+            }
+        });
+
+        // Load results
+        document.getElementById('resultsBtn').addEventListener('click', () => {
+            document.getElementById('resultsCard').style.display = 'block';
+            loadResults();
+        });
 
         async function loadResults() {
             const box = document.getElementById('resultsContainer');
-            const card = document.getElementById('resultsCard');
-            card.style.display = 'block';
-            box.innerHTML = 'Đang tải...';
+            box.innerHTML = '<div style="color:var(--text-muted)">Đang tải...</div>';
             try {
                 const resp = await fetch('/list-hoplong-results');
                 const data = await resp.json();
-                if (!data.success) { box.innerHTML = 'Lỗi tải kết quả'; return; }
                 const arr = data.results || [];
-                if (!arr.length) { box.innerHTML = 'Chưa có kết quả.'; return; }
-                let html = '';
-                arr.forEach(r => {
-                    html += `<div class="border rounded p-3 mb-2 d-flex justify-content-between align-items-center">
-                        <div>
-                            <div class="fw-semibold">${r.folder_name}</div>
-                            <div class="text-muted small">Categories: ${r.category_count} | Products: ${r.product_count} | Images: ${r.image_count} | Created: ${r.created_time}</div>
-                        </div>
-                        <a class="btn btn-sm btn-success" href="/download-hoplong-result/${r.folder_name}">Tải ZIP</a>
-                    </div>`;
-                });
-                box.innerHTML = html;
-            } catch (e) {
-                box.innerHTML = 'Lỗi kết nối.';
-            }
-        }
-
-        function updateProgress(p, m, d) {
-            const bar = document.getElementById('progressBar');
-            const msg = document.getElementById('progressMessage');
-            const det = document.getElementById('progressDetail');
-            bar.style.width = (p || 0) + '%';
-            bar.textContent = Math.round(p || 0) + '%';
-            msg.textContent = m || '';
-            det.textContent = d || '';
-        }
-
-        function showErrorMessage(message, errorDetails) {
-            const errorCard = document.getElementById('errorCard');
-            const errorMessage = document.getElementById('errorMessage');
-            const errorDetailsDiv = document.getElementById('errorDetails');
-            const errorDetailsPre = errorDetailsDiv.querySelector('pre');
-
-            errorMessage.textContent = message;
-
-            if (errorDetails) {
-                errorDetailsPre.textContent = errorDetails;
-                document.getElementById('showErrorDetails').style.display = 'inline-block';
-            } else {
-                document.getElementById('showErrorDetails').style.display = 'none';
-            }
-
-            errorDetailsDiv.style.display = 'none';
-            errorCard.style.display = 'block';
-
-            // Ẩn success card nếu đang hiển thị
-            document.getElementById('successCard').style.display = 'none';
-        }
-
-        function showSuccessMessage(message, stats) {
-            const successCard = document.getElementById('successCard');
-            const successMessage = document.getElementById('successMessage');
-            const successStats = document.getElementById('successStats');
-
-            successMessage.textContent = message;
-
-            if (stats) {
-                let statsText = `Danh mục xử lý: ${stats.categories_processed || 0}, `;
-                statsText += `Hãng xử lý: ${stats.brands_processed || 0}, `;
-                statsText += `Sản phẩm tìm thấy: ${stats.products_found || 0}, `;
-                statsText += `Sản phẩm xử lý: ${stats.products_processed || 0}`;
-                if (stats.errors > 0) {
-                    statsText += `, Lỗi: ${stats.errors}`;
+                if (!arr.length) {
+                    box.innerHTML = '<div style="color:var(--text-muted)">Chưa có kết quả nào.</div>';
+                    return;
                 }
-                successStats.textContent = statsText;
-            } else {
-                successStats.textContent = '';
+                box.innerHTML = arr.map(r => `
+        <div class="result-row">
+          <div>
+            <div class="result-name">📁 ${r.folder_name}</div>
+            <div class="result-meta">
+              <span class="badge-stat">🏭 ${r.brand_count} hãng</span>
+              <span class="badge-stat green">📦 ${r.product_count} sản phẩm</span>
+              <span class="badge-stat orange">🖼 ${r.image_count} ảnh</span>
+              <span style="color:var(--text-muted);font-size:.75rem">• ${r.created_time}</span>
+            </div>
+          </div>
+          <a class="btn-download" href="/download-hoplong-result/${r.folder_name}">⬇ Tải ZIP</a>
+        </div>
+      `).join('');
+            } catch (e) {
+                box.innerHTML = '<div style="color:var(--danger)">Lỗi tải kết quả: ' + e.message + '</div>';
             }
-
-            successCard.style.display = 'block';
-
-            // Ẩn error card nếu đang hiển thị
-            document.getElementById('errorCard').style.display = 'none';
         }
-    </script>
 
-    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+        // Auto load results on page load
+        loadResults();
+        document.getElementById('resultsCard').style.display = 'block';
+    </script>
 </body>
 
 </html>

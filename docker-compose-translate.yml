@@ -1,0 +1,22 @@
+services:
+  libretranslate:
+    image: libretranslate/libretranslate:latest
+    container_name: libretranslate
+    restart: unless-stopped
+    command:
+      - --load-only
+      - en,vi
+      - --char-limit
+      - "5000"
+      - --threads
+      - "4"
+      - --disable-files-translation
+    ports:
+      - "127.0.0.1:5000:5000"
+    volumes:
+      - libretranslate_data:/home/libretranslate/.local
+      - libretranslate_db:/app/db
+
+volumes:
+  libretranslate_data:
+  libretranslate_db:

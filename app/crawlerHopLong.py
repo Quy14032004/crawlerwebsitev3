@@ -1,17 +1,20 @@
 """
-HopLong Product Crawler - Cào dữ liệu sản phẩm từ hoplongtech.com
-Yêu cầu: Lấy Tên sản phẩm, Mã sản phẩm, Thông số kỹ thuật (toàn bộ), Hãng. 
-- Dùng Selenium để load danh mục, áp dụng bộ lọc hãng
-- Đa luồng khi cào chi tiết sản phẩm bằng requests
-- Xuất Excel theo Danh mục + Hãng: "<Danh mục> <Hãng>.xlsx"
-- Thêm hàng Copyright vào cuối mỗi bảng thông số kỹ thuật
+HopLong Product Crawler - CÃ o dá»¯ liá»‡u sáº£n pháº©m tá»« hoplongtech.com
+YÃªu cáº§u: Láº¥y TÃªn sáº£n pháº©m, MÃ£ sáº£n pháº©m, ThÃ´ng sá»‘ ká»¹ thuáº­t (toÃ n bá»™), HÃ£ng. 
+- DÃ¹ng Selenium Ä‘á»ƒ load danh má»¥c, Ã¡p dá»¥ng bá»™ lá»c hÃ£ng
+- Äa luá»“ng khi cÃ o chi tiáº¿t sáº£n pháº©m báº±ng requests
+- Xuáº¥t Excel theo Danh má»¥c + HÃ£ng: "<Danh má»¥c> <HÃ£ng>.xlsx"
+- ThÃªm hÃ ng Copyright vÃ o cuá»‘i má»—i báº£ng thÃ´ng sá»‘ ká»¹ thuáº­t
 """
 
 import os
 import re
 import time
 import json
+import asyncio
+import random
 import logging
+import threading
 import concurrent.futures
 from datetime import datetime
 from urllib.parse import urljoin, urlparse
@@ -32,10 +35,16 @@ from app import utils, socketio
 
 
 logger = logging.getLogger(__name__)
+if not logger.handlers:
+    os.makedirs('logs', exist_ok=True)
+    fh = logging.FileHandler('logs/hoplong.log', encoding='utf-8')
+    fh.setFormatter(logging.Formatter('%(asctime)s - %(levelname)s - %(message)s'))
+    logger.addHandler(fh)
+    logger.setLevel(logging.INFO)
 
 
 class HopLongCrawler:
-    """Crawler dành cho hoplongtech.com"""
+    """Crawler dÃ nh cho hoplongtech.com"""
 
     def __init__(self, output_root: str | None = None, max_workers: int = 10, socketio_instance=None):
         self.base_url = "https://hoplongtech.com"
@@ -45,13 +54,13 @@ class HopLongCrawler:
         self.max_workers = max_workers
         self.socketio = socketio_instance or socketio
 
-        # requests session - enhanced với connection pooling và retry
+        # requests session - enhanced vá»›i connection pooling vÃ  retry
         self.session = requests.Session()
         self.session.headers.update({
             'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
             'Accept-Language': 'vi-VN,vi;q=0.9,en;q=0.8',
             'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-            'Accept-Encoding': 'gzip, deflate, br',
+            'Accept-Encoding': 'gzip, deflate',
             'Connection': 'keep-alive',
             'DNT': '1',
             'Upgrade-Insecure-Requests': '1',
@@ -60,7 +69,7 @@ class HopLongCrawler:
             'Sec-Fetch-Site': 'none'
         })
         
-        # Connection pooling và retry configuration
+        # Connection pooling vÃ  retry configuration
         from requests.adapters import HTTPAdapter
         from urllib3.util.retry import Retry
         
@@ -68,9 +77,9 @@ class HopLongCrawler:
             total=3,
             backoff_factor=1,
             status_forcelist=[429, 500, 502, 503, 504],
-            method_whitelist=["HEAD", "GET", "OPTIONS"]
+            allowed_methods=["HEAD", "GET", "OPTIONS"]
         )
-        adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=20, pool_maxsize=20)
+        adapter = HTTPAdapter(max_retries=retry_strategy, pool_connections=500, pool_maxsize=500)
         self.session.mount("http://", adapter)
         self.session.mount("https://", adapter)
 
@@ -82,11 +91,11 @@ class HopLongCrawler:
         self.chrome_options.add_argument('--window-size=1920,1080')
         self.chrome_options.add_argument('--disable-gpu')
         self.chrome_options.add_argument('--log-level=3')
-        # Anti-detection và stability flags
+        # Anti-detection vÃ  stability flags
         self.chrome_options.add_argument('--disable-blink-features=AutomationControlled')
         self.chrome_options.add_argument('--disable-extensions')
         self.chrome_options.add_argument('--disable-plugins')
-        # NOTE: Bỏ --disable-javascript vì cần JavaScript cho Alpine.js
+        # NOTE: Bá» --disable-javascript vÃ¬ cáº§n JavaScript cho Alpine.js
         # self.chrome_options.add_argument('--disable-images')  # Keep images for better interaction
         self.chrome_options.add_argument('--no-first-run')
         self.chrome_options.add_argument('--no-default-browser-check')
@@ -99,7 +108,7 @@ class HopLongCrawler:
         # Network optimization
         self.chrome_options.add_argument('--aggressive-cache-discard')
         self.chrome_options.add_argument('--memory-pressure-off')
-        # Additional User-Agent để tránh detection
+        # Additional User-Agent Ä‘á»ƒ trÃ¡nh detection
         self.chrome_options.add_argument('--user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36')
         self.chrome_options.add_experimental_option("excludeSwitches", ["enable-automation"])
         self.chrome_options.add_experimental_option('useAutomationExtension', False)
@@ -124,7 +133,7 @@ class HopLongCrawler:
             pass
 
     def get_driver(self, retries: int = 3):
-        """Khởi tạo WebDriver với retry logic và improved error handling"""
+        """Khá»Ÿi táº¡o WebDriver vá»›i retry logic vÃ  improved error handling"""
         def _create_driver():
             try:
                 driver = webdriver.Chrome(options=self.chrome_options)
@@ -138,13 +147,13 @@ class HopLongCrawler:
                 
                 return driver
             except Exception as e:
-                logger.error(f"Lỗi khởi tạo WebDriver: {e}")
+                logger.error(f"Lá»—i khá»Ÿi táº¡o WebDriver: {e}")
                 raise
         
         try:
             return self.retry_with_backoff(_create_driver, max_retries=retries, base_delay=2.0)
         except Exception as e:
-            logger.error(f"Không thể khởi tạo WebDriver sau {retries} lần thử: {e}")
+            logger.error(f"KhÃ´ng thá»ƒ khá»Ÿi táº¡o WebDriver sau {retries} láº§n thá»­: {e}")
             raise
 
     def close_driver(self, driver):
@@ -155,18 +164,18 @@ class HopLongCrawler:
     
     def check_website_health(self, url: str, timeout: int = 15) -> bool:
         """
-        Kiểm tra kết nối đến website trước khi thực hiện operations
+        Kiá»ƒm tra káº¿t ná»‘i Ä‘áº¿n website trÆ°á»›c khi thá»±c hiá»‡n operations
         """
         try:
             response = self.session.head(url, timeout=timeout)
             return response.status_code == 200
         except Exception as e:
-            logger.warning(f"Website health check thất bại cho {url}: {e}")
+            logger.warning(f"Website health check tháº¥t báº¡i cho {url}: {e}")
             return False
     
     def retry_with_backoff(self, func, max_retries: int = 3, base_delay: float = 1.0):
         """
-        Retry decorator với exponential backoff
+        Retry decorator vá»›i exponential backoff
         """
         for attempt in range(max_retries):
             try:
@@ -177,35 +186,35 @@ class HopLongCrawler:
                 
                 delay = base_delay * (2 ** attempt)
                 error_type = type(e).__name__
-                logger.warning(f"Attempt {attempt + 1} thất bại ({error_type}): {e}. Thử lại sau {delay}s...")
+                logger.warning(f"Attempt {attempt + 1} tháº¥t báº¡i ({error_type}): {e}. Thá»­ láº¡i sau {delay}s...")
                 
-                # Emit progress cho user biết đang retry
+                # Emit progress cho user biáº¿t Ä‘ang retry
                 if hasattr(self, 'emit_progress'):
                     self.emit_progress(
                         0, 
-                        f"Lỗi kết nối, đang thử lại...", 
-                        f"Lần thử {attempt + 1}/{max_retries}"
+                        f"Lá»—i káº¿t ná»‘i, Ä‘ang thá»­ láº¡i...", 
+                        f"Láº§n thá»­ {attempt + 1}/{max_retries}"
                     )
                 
                 time.sleep(delay)
         
-        raise Exception(f"Thất bại sau {max_retries} lần thử")
+        raise Exception(f"Tháº¥t báº¡i sau {max_retries} láº§n thá»­")
 
     # ======= CATEGORY / BRAND HELPERS =======
     def fetch_categories_via_selenium(self) -> list[dict]:
-        """Trả về danh sách danh mục ở trang chủ: [{name, url}]"""
+        """Tráº£ vá» danh sÃ¡ch danh má»¥c á»Ÿ trang chá»§: [{name, url}]"""
         driver = self.get_driver()
         try:
             driver.set_page_load_timeout(40)
             driver.get(self.base_url)
-            # Thử selector chính
+            # Thá»­ selector chÃ­nh
             try:
                 WebDriverWait(driver, 15).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, '.category-navigation__list ul li a'))
                 )
                 candidates = driver.find_elements(By.CSS_SELECTOR, '.category-navigation__list ul li a')
             except Exception:
-                # Thử selector dự phòng: tất cả link category
+                # Thá»­ selector dá»± phÃ²ng: táº¥t cáº£ link category
                 WebDriverWait(driver, 15).until(
                     EC.presence_of_element_located((By.CSS_SELECTOR, 'a[href^="/category/"]'))
                 )
@@ -219,7 +228,7 @@ class HopLongCrawler:
                     if href and text:
                         if href.startswith('/'):
                             href = urljoin(self.base_url, href)
-                        # Chỉ lấy đường dẫn category
+                        # Chá»‰ láº¥y Ä‘Æ°á»ng dáº«n category
                         if '/category/' in href:
                             results.append({"name": text, "url": href})
                 except Exception:
@@ -233,23 +242,23 @@ class HopLongCrawler:
                     seen.add(item['url'])
             if unique:
                 return unique
-            # Fallback lần cuối bằng requests
+            # Fallback láº§n cuá»‘i báº±ng requests
             return self.fetch_categories_via_requests()
         except Exception:
-            # Fallback requests nếu có bất kỳ lỗi nào
+            # Fallback requests náº¿u cÃ³ báº¥t ká»³ lá»—i nÃ o
             return self.fetch_categories_via_requests()
         finally:
             self.close_driver(driver)
 
     def fetch_categories_via_requests(self) -> list[dict]:
-        """Fallback: lấy danh mục từ trang /category bằng requests + BeautifulSoup."""
+        """Fallback: láº¥y danh má»¥c tá»« trang /category báº±ng requests + BeautifulSoup."""
         try:
             url = urljoin(self.base_url, '/category')
             resp = self.session.get(url, timeout=30)
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, 'html.parser')
             results: list[dict] = []
-            # Lấy tất cả link category hợp lệ
+            # Láº¥y táº¥t cáº£ link category há»£p lá»‡
             for a in soup.select('a[href^="/category/"]'):
                 href = a.get('href') or ''
                 text = (a.get_text() or '').strip()
@@ -257,7 +266,7 @@ class HopLongCrawler:
                     continue
                 if href.startswith('/'):
                     href = urljoin(self.base_url, href)
-                # tránh các link rỗng, lặp
+                # trÃ¡nh cÃ¡c link rá»—ng, láº·p
                 if '/category/' in href and len(text) >= 2:
                     results.append({"name": text, "url": href})
             # unique
@@ -269,19 +278,19 @@ class HopLongCrawler:
                     seen.add(item['url'])
             return unique
         except Exception as e:
-            logger.error(f"Fallback categories via requests lỗi: {e}")
+            logger.error(f"Fallback categories via requests lá»—i: {e}")
             return []
 
     def fetch_brands_for_category(self, category_url: str) -> list[str]:
-        """STRICT brand extraction - Chỉ lấy brands thực sự có trên trang."""
+        """STRICT brand extraction - Chá»‰ láº¥y brands thá»±c sá»± cÃ³ trÃªn trang."""
         driver = None
         brands: list[str] = []
         
-        logger.info(f"🔍 FETCHING BRANDS for category: {category_url}")
+        logger.info(f"ðŸ” FETCHING BRANDS for category: {category_url}")
         
-        # Kiểm tra website health trước khi dùng Selenium
+        # Kiá»ƒm tra website health trÆ°á»›c khi dÃ¹ng Selenium
         if not self.check_website_health(category_url):
-            logger.warning(f"Website không sẵn sàng, chuyển sang fallback method")
+            logger.warning(f"Website khÃ´ng sáºµn sÃ ng, chuyá»ƒn sang fallback method")
             return self.fetch_brands_via_requests(category_url)
         
         def _fetch_with_selenium():
@@ -291,21 +300,21 @@ class HopLongCrawler:
             WebDriverWait(driver, 30).until(EC.presence_of_element_located((By.TAG_NAME, 'body')))
             time.sleep(1.5)
             
-            # Extract brands và validation
+            # Extract brands vÃ  validation
             extracted_brands = self._extract_brands_from_page(driver)
             
             # STRICT validation - check only valid brands for this category
-            logger.info(f"📋 Raw extracted brands: {extracted_brands}")
+            logger.info(f"ðŸ“‹ Raw extracted brands: {extracted_brands}")
             
-            # Filter out invalid brands và chỉ giữ brands có trên trang
+            # Filter out invalid brands vÃ  chá»‰ giá»¯ brands cÃ³ trÃªn trang
             valid_brands = []
             for brand in extracted_brands:
                 # Basic validation
                 if (brand and len(brand.strip()) >= 2 and 
-                    not any(word in brand.lower() for word in ['chọn', 'tìm', 'filter', 'search', 'all'])):
+                    not any(word in brand.lower() for word in ['chá»n', 'tÃ¬m', 'filter', 'search', 'all'])):
                     valid_brands.append(brand.strip())
             
-            logger.info(f"✅ VALID brands after filtering: {valid_brands}")
+            logger.info(f"âœ… VALID brands after filtering: {valid_brands}")
             return valid_brands
         
         try:
@@ -313,38 +322,38 @@ class HopLongCrawler:
             
             # Final validation check
             if brands:
-                logger.info(f"🎯 FINAL BRANDS for category: {brands}")
-                # Đảm bảo chỉ trả về brands thực sự có trên trang
-                return [b for b in brands if b and len(b.strip()) >= 2][:10]  # Limit to 10 brands max
+                logger.info(f"ðŸŽ¯ FINAL BRANDS for category: {brands}")
+                # Äáº£m báº£o chá»‰ tráº£ vá» brands thá»±c sá»± cÃ³ trÃªn trang
+                return [b for b in brands if b and len(b.strip()) >= 2]  # No limit â€” allow all brands
             else:
-                logger.warning("⚠️ No brands found with Selenium, trying fallback...")
+                logger.warning("âš ï¸ No brands found with Selenium, trying fallback...")
                 return self.fetch_brands_via_requests(category_url)
                 
         except WebDriverException as e:
             if "ERR_CONNECTION_RESET" in str(e) or "net::" in str(e):
-                logger.error(f"Lỗi kết nối mạng Selenium (ERR_CONNECTION_RESET): {e}")
-                self.emit_progress(0, "Lỗi kết nối", "Chuyển sang phương pháp backup...")
+                logger.error(f"Lá»—i káº¿t ná»‘i máº¡ng Selenium (ERR_CONNECTION_RESET): {e}")
+                self.emit_progress(0, "Lá»—i káº¿t ná»‘i", "Chuyá»ƒn sang phÆ°Æ¡ng phÃ¡p backup...")
             else:
-                logger.error(f"Lỗi WebDriver: {e}")
+                logger.error(f"Lá»—i WebDriver: {e}")
             return self.fetch_brands_via_requests(category_url)
         except Exception as e:
-            logger.error(f"Lỗi không xác định khi lấy brands bằng Selenium: {e}")
+            logger.error(f"Lá»—i khÃ´ng xÃ¡c Ä‘á»‹nh khi láº¥y brands báº±ng Selenium: {e}")
             return self.fetch_brands_via_requests(category_url)
         finally:
             if driver:
                 self.close_driver(driver)
     
     def _extract_brands_from_page(self, driver) -> list[str]:
-        """Trích xuất brands từ trang đã load với Alpine.js support"""
+        """TrÃ­ch xuáº¥t brands tá»« trang Ä‘Ã£ load vá»›i Alpine.js support"""
         brands: list[str] = []
 
-        # Step 1: Mở filter panel 
+        # Step 1: Má»Ÿ filter panel 
         self._open_brand_filter_panel(driver)
         time.sleep(1.0)  # Wait for Alpine.js animations
 
         # Step 2: Wait for dropdown options to be visible
         try:
-            # Wait for filter list options to appear với Alpine.js
+            # Wait for filter list options to appear vá»›i Alpine.js
             WebDriverWait(driver, 10).until(
                 lambda d: d.find_elements(By.CSS_SELECTOR, "ul.filter-list__options li") or
                          d.find_elements(By.XPATH, "//div[contains(@class,'filter-box__item')]//li")
@@ -353,7 +362,7 @@ class HopLongCrawler:
         except Exception:
             logger.warning("Timeout waiting for brand filter options")
 
-        # Step 3: Parse brands từ new Alpine.js structure
+        # Step 3: Parse brands tá»« new Alpine.js structure
         selectors_to_try = [
             # New Alpine.js selectors
             {
@@ -367,7 +376,7 @@ class HopLongCrawler:
             # Old selectors fallback
             {
                 "name": "Old filter structure",
-                "xpath": "//div[contains(@class,'filter-list__button')]//span[contains(.,'Chọn hãng sản xuất')]/ancestor::*[contains(@class,'filter-list__button')][1]/following-sibling::*//li"
+                "xpath": "//div[contains(@class,'filter-list__button')]//span[contains(.,'Chá»n hÃ£ng sáº£n xuáº¥t')]/ancestor::*[contains(@class,'filter-list__button')][1]/following-sibling::*//li"
             },
             {
                 "name": "General filter list",
@@ -378,7 +387,7 @@ class HopLongCrawler:
         for selector_info in selectors_to_try:
             try:
                 nodes = driver.find_elements(By.XPATH, selector_info["xpath"])
-                logger.debug(f"Tìm thấy {len(nodes)} nodes với selector: {selector_info['name']}")
+                logger.debug(f"TÃ¬m tháº¥y {len(nodes)} nodes vá»›i selector: {selector_info['name']}")
                 
                 for node in nodes:
                     brand_text = (node.text or '').strip()
@@ -388,9 +397,9 @@ class HopLongCrawler:
                         
                         # Validate brand name
                         if (2 <= len(brand_text) <= 40 and 
-                            'Hãng' not in brand_text and 
-                            'Tìm kiếm' not in brand_text and
-                            'Chọn' not in brand_text and
+                            'HÃ£ng' not in brand_text and 
+                            'TÃ¬m kiáº¿m' not in brand_text and
+                            'Chá»n' not in brand_text and
                             brand_text not in brands):
                             brands.append(brand_text)
                             logger.debug(f"Added brand: {brand_text}")
@@ -415,8 +424,8 @@ class HopLongCrawler:
                         # Check if it looks like a brand name
                         if (2 <= len(text) <= 40 and 
                             text.isalpha() and 
-                            'Hãng' not in text and 
-                            'Tìm kiếm' not in text and
+                            'HÃ£ng' not in text and 
+                            'TÃ¬m kiáº¿m' not in text and
                             text not in brands):
                             brands.append(text)
                             if len(brands) >= 10:  # Limit fallback results
@@ -428,7 +437,7 @@ class HopLongCrawler:
         return brands
 
     def fetch_brands_via_requests(self, category_url: str) -> list[str]:
-        """Fallback: cố gắng tìm danh sách hãng từ HTML (category hoặc /brands)."""
+        """Fallback: cá»‘ gáº¯ng tÃ¬m danh sÃ¡ch hÃ£ng tá»« HTML (category hoáº·c /brands)."""
         brands: list[str] = []
         
         def _fetch_brands_from_category():
@@ -437,28 +446,28 @@ class HopLongCrawler:
             return BeautifulSoup(resp.text, 'html.parser')
         
         try:
-            # 1) thử ngay trên trang danh mục với retry
+            # 1) thá»­ ngay trÃªn trang danh má»¥c vá»›i retry
             soup = self.retry_with_backoff(_fetch_brands_from_category, max_retries=3, base_delay=1.5)
 
-            # tìm cụm gần chữ 'Chọn hãng sản xuất'
+            # tÃ¬m cá»¥m gáº§n chá»¯ 'Chá»n hÃ£ng sáº£n xuáº¥t'
             candidates = []
-            for el in soup.find_all(text=re.compile(r'Chọn\s*hãng\s*sản\s*xuất', re.IGNORECASE)):
+            for el in soup.find_all(text=re.compile(r'Chá»n\s*hÃ£ng\s*sáº£n\s*xuáº¥t', re.IGNORECASE)):
                 parent = el.parent
-                # lấy các label/span/li gần đó
+                # láº¥y cÃ¡c label/span/li gáº§n Ä‘Ã³
                 for lbl in parent.find_all_next(['label', 'span', 'li'], limit=200):
                     txt = lbl.get_text(strip=True)
                     if txt:
                         candidates.append(txt)
-            # lọc
+            # lá»c
             for t in candidates:
-                if 2 <= len(t) <= 40 and 'Hãng' not in t and 'Tìm kiếm' not in t:
+                if 2 <= len(t) <= 40 and 'HÃ£ng' not in t and 'TÃ¬m kiáº¿m' not in t:
                     if t not in brands:
                         brands.append(t)
 
             if brands:
                 return brands
 
-            # 2) fallback toàn site brands
+            # 2) fallback toÃ n site brands
             def _fetch_from_brands_page():
                 brands_url = urljoin(self.base_url, '/brands')
                 resp2 = self.session.get(brands_url, timeout=45, allow_redirects=True)
@@ -476,26 +485,26 @@ class HopLongCrawler:
                     if 2 <= len(t) <= 40 and t not in brands:
                         brands.append(t)
             except Exception as fallback_error:
-                logger.warning(f"Fallback brands page cũng thất bại: {fallback_error}")
+                logger.warning(f"Fallback brands page cÅ©ng tháº¥t báº¡i: {fallback_error}")
             
-            # giới hạn để UI hiển thị nhẹ
-            return brands[:100]
+            # KhÃ´ng giá»›i háº¡n: tráº£ vá» táº¥t cáº£ brands tÃ¬m Ä‘Æ°á»£c
+            return brands
         except requests.exceptions.ConnectionError as e:
-            logger.error(f"Lỗi kết nối requests khi lấy brands: {e}")
-            self.emit_progress(0, "Lỗi kết nối", "Không thể kết nối đến website")
+            logger.error(f"Lá»—i káº¿t ná»‘i requests khi láº¥y brands: {e}")
+            self.emit_progress(0, "Lá»—i káº¿t ná»‘i", "KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘áº¿n website")
             return []
         except requests.exceptions.Timeout as e:
-            logger.error(f"Timeout khi lấy brands: {e}")
-            self.emit_progress(0, "Hết thời gian chờ", "Website phản hồi chậm")
+            logger.error(f"Timeout khi láº¥y brands: {e}")
+            self.emit_progress(0, "Háº¿t thá»i gian chá»", "Website pháº£n há»“i cháº­m")
             return []
         except Exception as e:
-            logger.error(f"Fallback brands via requests lỗi: {e}")
+            logger.error(f"Fallback brands via requests lá»—i: {e}")
             return brands
 
     def fetch_subcategories_for_category(self, category_url: str) -> list[dict]:
         """
-        Lấy danh sách danh mục con từ trang danh mục chính
-        Trả về [{name, url, product_count}]
+        Láº¥y danh sÃ¡ch danh má»¥c con tá»« trang danh má»¥c chÃ­nh
+        Tráº£ vá» [{name, url, product_count}]
         """
         def _fetch_with_requests():
             resp = self.session.get(category_url, timeout=45, allow_redirects=True)
@@ -504,19 +513,19 @@ class HopLongCrawler:
         
         subcategories: list[dict] = []
         try:
-            # Sử dụng requests để lấy HTML
+            # Sá»­ dá»¥ng requests Ä‘á»ƒ láº¥y HTML
             soup = self.retry_with_backoff(_fetch_with_requests, max_retries=3, base_delay=1.5)
             
-            # Tìm container chứa subcategories 
+            # TÃ¬m container chá»©a subcategories 
             cate_box = soup.select_one('div.cate-box.flex')
             if not cate_box:
-                logger.warning(f"Không tìm thấy cate-box container trong {category_url}")
+                logger.warning(f"KhÃ´ng tÃ¬m tháº¥y cate-box container trong {category_url}")
                 return []
             
-            # Parse từng subcategory item
+            # Parse tá»«ng subcategory item
             for item in cate_box.select('div.cate-list__item.flex-center-left'):
                 try:
-                    # Lấy link và title từ thẻ a
+                    # Láº¥y link vÃ  title tá»« tháº» a
                     link_el = item.select_one('div.cate-name a')
                     if not link_el:
                         continue
@@ -527,16 +536,16 @@ class HopLongCrawler:
                     if not href or not title:
                         continue
                     
-                    # Đảm bảo URL đầy đủ
+                    # Äáº£m báº£o URL Ä‘áº§y Ä‘á»§
                     if href.startswith('/'):
                         href = urljoin(self.base_url, href)
                     
-                    # Lấy số lượng sản phẩm
+                    # Láº¥y sá»‘ lÆ°á»£ng sáº£n pháº©m
                     count_el = item.select_one('div.cate-name span')
                     product_count = 0
                     if count_el:
                         count_text = count_el.get_text(strip=True)
-                        # Parse số từ text như "(8 Sản phẩm)"
+                        # Parse sá»‘ tá»« text nhÆ° "(8 Sáº£n pháº©m)"
                         import re
                         match = re.search(r'\((\d+)', count_text)
                         if match:
@@ -549,53 +558,53 @@ class HopLongCrawler:
                     })
                     
                 except Exception as e:
-                    logger.debug(f"Lỗi parse subcategory item: {e}")
+                    logger.debug(f"Lá»—i parse subcategory item: {e}")
                     continue
             
-            logger.info(f"Tìm thấy {len(subcategories)} subcategories từ {category_url}")
+            logger.info(f"TÃ¬m tháº¥y {len(subcategories)} subcategories tá»« {category_url}")
             return subcategories
             
         except requests.exceptions.ConnectionError as e:
-            logger.error(f"Lỗi kết nối khi lấy subcategories: {e}")
-            self.emit_progress(0, "Lỗi kết nối", "Không thể kết nối để lấy danh mục con")
+            logger.error(f"Lá»—i káº¿t ná»‘i khi láº¥y subcategories: {e}")
+            self.emit_progress(0, "Lá»—i káº¿t ná»‘i", "KhÃ´ng thá»ƒ káº¿t ná»‘i Ä‘á»ƒ láº¥y danh má»¥c con")
             return []
         except requests.exceptions.Timeout as e:
-            logger.error(f"Timeout khi lấy subcategories: {e}")
-            self.emit_progress(0, "Hết thời gian chờ", "Website phản hồi chậm")
+            logger.error(f"Timeout khi láº¥y subcategories: {e}")
+            self.emit_progress(0, "Háº¿t thá»i gian chá»", "Website pháº£n há»“i cháº­m")
             return []
         except Exception as e:
-            logger.error(f"Lỗi khi lấy subcategories từ {category_url}: {e}")
+            logger.error(f"Lá»—i khi láº¥y subcategories tá»« {category_url}: {e}")
             return []
 
     def _open_brand_filter_panel(self, driver) -> None:
-        """Click để mở phần 'Chọn hãng sản xuất' trong filter với Alpine.js support."""
+        """Click Ä‘á»ƒ má»Ÿ pháº§n 'Chá»n hÃ£ng sáº£n xuáº¥t' trong filter vá»›i Alpine.js support."""
         try:
-            # Step 1: Click vào nút "Bộ lọc" chính để mở filter panel
+            # Step 1: Click vÃ o nÃºt "Bá»™ lá»c" chÃ­nh Ä‘á»ƒ má»Ÿ filter panel
             try:
                 filter_btn = driver.find_element(By.CSS_SELECTOR, "div.filter-btn.responsive")
                 driver.execute_script("arguments[0].scrollIntoView({block:'center'});", filter_btn)
                 time.sleep(0.5)
                 driver.execute_script("arguments[0].click();", filter_btn)
-                logger.info("Đã click vào nút Bộ lọc chính")
+                logger.info("ÄÃ£ click vÃ o nÃºt Bá»™ lá»c chÃ­nh")
                 time.sleep(1.0)  # Wait for Alpine.js to show panel
             except Exception as e:
-                logger.debug(f"Không tìm thấy filter button chính: {e}")
-                # Fallback: thử old selector
+                logger.debug(f"KhÃ´ng tÃ¬m tháº¥y filter button chÃ­nh: {e}")
+                # Fallback: thá»­ old selector
                 try:
-                    filter_toggle = driver.find_element(By.XPATH, "//*[normalize-space()='Bộ lọc' or contains(.,'Bộ lọc')]")
+                    filter_toggle = driver.find_element(By.XPATH, "//*[normalize-space()='Bá»™ lá»c' or contains(.,'Bá»™ lá»c')]")
                     driver.execute_script("arguments[0].click();", filter_toggle)
                     time.sleep(0.5)
                 except Exception:
                     pass
 
-            # Step 2: Click vào "Chọn hãng sản xuất" trong filter panel
+            # Step 2: Click vÃ o "Chá»n hÃ£ng sáº£n xuáº¥t" trong filter panel
             selectors_to_try = [
                 # New selectors cho Alpine.js structure
-                "//div[contains(@class,'filter-box__item')]//h4[contains(.,'Hãng sản xuất')]/following-sibling::*//span[contains(.,'Chọn hãng sản xuất')]",
-                "//div[contains(@class,'filter-box__item')]//span[contains(.,'Chọn hãng sản xuất')]",
+                "//div[contains(@class,'filter-box__item')]//h4[contains(.,'HÃ£ng sáº£n xuáº¥t')]/following-sibling::*//span[contains(.,'Chá»n hÃ£ng sáº£n xuáº¥t')]",
+                "//div[contains(@class,'filter-box__item')]//span[contains(.,'Chá»n hÃ£ng sáº£n xuáº¥t')]",
                 # Old selectors fallback
-                "//div[contains(@class,'filter-list__button')]//span[contains(.,'Chọn hãng sản xuất')]",
-                "//*[contains(.,'Chọn hãng sản xuất')]"
+                "//div[contains(@class,'filter-list__button')]//span[contains(.,'Chá»n hÃ£ng sáº£n xuáº¥t')]",
+                "//*[contains(.,'Chá»n hÃ£ng sáº£n xuáº¥t')]"
             ]
             
             for selector in selectors_to_try:
@@ -604,23 +613,23 @@ class HopLongCrawler:
                     driver.execute_script("arguments[0].scrollIntoView({block:'center'});", button)
                     time.sleep(0.3)
                     driver.execute_script("arguments[0].click();", button)
-                    logger.info(f"Đã click vào 'Chọn hãng sản xuất' với selector: {selector}")
+                    logger.info(f"ÄÃ£ click vÃ o 'Chá»n hÃ£ng sáº£n xuáº¥t' vá»›i selector: {selector}")
                     time.sleep(0.8)  # Wait for Alpine.js dropdown - optimized
                     return
                 except Exception:
                     continue
             
-            logger.warning("Không thể click vào 'Chọn hãng sản xuất'")
+            logger.warning("KhÃ´ng thá»ƒ click vÃ o 'Chá»n hÃ£ng sáº£n xuáº¥t'")
             
         except Exception as e:
-            logger.error(f"Lỗi khi mở brand filter panel: {e}")
+            logger.error(f"Lá»—i khi má»Ÿ brand filter panel: {e}")
 
     def _apply_brand_filter(self, driver, brand_name: str) -> bool:
-        """STRICT brand filter - Áp dụng filter theo brand với smart waits."""
-        logger.info(f"🎯 APPLYING STRICT BRAND FILTER: {brand_name}")
+        """STRICT brand filter - Ãp dá»¥ng filter theo brand vá»›i smart waits."""
+        logger.info(f"ðŸŽ¯ APPLYING STRICT BRAND FILTER: {brand_name}")
         
         try:
-            # Step 1: Clear existing filters trước khi áp dụng
+            # Step 1: Clear existing filters trÆ°á»›c khi Ã¡p dá»¥ng
             try:
                 clear_buttons = driver.find_elements(By.CSS_SELECTOR, '.filter-selected .button-selected .close, .filter-selected .remove, .clear-filter')
                 for btn in clear_buttons:
@@ -630,13 +639,13 @@ class HopLongCrawler:
                         WebDriverWait(driver, 3).until(
                             lambda d: not d.find_elements(By.CSS_SELECTOR, '.filter-selected .button-selected')
                         )
-                        logger.info("🧹 Cleared existing filter")
+                        logger.info("ðŸ§¹ Cleared existing filter")
                     except:
                         pass
             except:
                 pass
 
-            # Step 2: mở panel chọn hãng với smart wait
+            # Step 2: má»Ÿ panel chá»n hÃ£ng vá»›i smart wait
             self._open_brand_filter_panel(driver)
             # OPTIMIZED: Wait for panel to be actually visible instead of fixed time
             try:
@@ -650,7 +659,7 @@ class HopLongCrawler:
                 logger.warning("Panel might not be visible, continuing anyway")
                 time.sleep(0.5)  # Minimal fallback wait
             
-            # Step 3: Tìm và click brand với EXACT match only
+            # Step 3: TÃ¬m vÃ  click brand vá»›i EXACT match only
             selectors_to_try = [
                 # EXACT match selectors only - NO partial match
                 f"//div[contains(@class,'filter-box__item')]//li[normalize-space()='{brand_name}']",
@@ -665,10 +674,10 @@ class HopLongCrawler:
             try:
                 all_brand_elements = driver.find_elements(By.XPATH, "//div[contains(@class,'filter-box__item')]//li | //ul[contains(@class,'filter-list__options')]//li")
                 available_brands = [elem.text.strip() for elem in all_brand_elements if elem.is_displayed() and elem.text.strip()]
-                logger.info(f"📋 Available brands on page: {available_brands}")
+                logger.info(f"ðŸ“‹ Available brands on page: {available_brands}")
                 
                 if brand_name not in available_brands:
-                    logger.error(f"❌ BRAND '{brand_name}' NOT AVAILABLE on page! Available: {available_brands}")
+                    logger.error(f"âŒ BRAND '{brand_name}' NOT AVAILABLE on page! Available: {available_brands}")
                     return False
             except Exception as e:
                 logger.warning(f"Cannot get available brands: {e}")
@@ -676,7 +685,7 @@ class HopLongCrawler:
             for selector in selectors_to_try:
                 try:
                     elements = driver.find_elements(By.XPATH, selector)
-                    logger.debug(f"Selector '{selector}' tìm thấy {len(elements)} elements")
+                    logger.debug(f"Selector '{selector}' tÃ¬m tháº¥y {len(elements)} elements")
                     
                     for element in elements:
                         if element.is_displayed() and element.is_enabled():
@@ -686,10 +695,10 @@ class HopLongCrawler:
                             if element_text.lower() == brand_name.lower():
                                 item = element
                                 used_selector = selector
-                                logger.info(f"✅ EXACT MATCH found for brand '{brand_name}' using selector: {selector}")
+                                logger.info(f"âœ… EXACT MATCH found for brand '{brand_name}' using selector: {selector}")
                                 break
                             else:
-                                logger.debug(f"❌ REJECTED element text: '{element_text}' (not exact match)")
+                                logger.debug(f"âŒ REJECTED element text: '{element_text}' (not exact match)")
                     
                     if item:
                         break
@@ -699,18 +708,18 @@ class HopLongCrawler:
                     continue
             
             if not item:
-                logger.error(f"❌ CRITICAL: Cannot find EXACT MATCH element for brand '{brand_name}'")
+                logger.error(f"âŒ CRITICAL: Cannot find EXACT MATCH element for brand '{brand_name}'")
                 return False
             
-            # Step 4: Click element với verification
+            # Step 4: Click element vá»›i verification
             try:
                 driver.execute_script("arguments[0].scrollIntoView({block:'center'});", item)
                 # OPTIMIZED: Brief wait for scroll completion
                 time.sleep(0.2)
                 driver.execute_script("arguments[0].click();", item)
-                logger.info(f"🖱️ Clicked brand '{brand_name}' element")
+                logger.info(f"ðŸ–±ï¸ Clicked brand '{brand_name}' element")
             except Exception as e:
-                logger.error(f"❌ Failed to click brand element: {e}")
+                logger.error(f"âŒ Failed to click brand element: {e}")
                 return False
                 
             # OPTIMIZED: Smart wait for filter application instead of fixed 2.0s
@@ -722,29 +731,29 @@ class HopLongCrawler:
                         EC.url_changes(driver.current_url)
                     )
                 )
-                logger.info("✅ Filter application detected")
+                logger.info("âœ… Filter application detected")
             except TimeoutException:
                 logger.warning("Filter application timeout, continuing with verification")
                 time.sleep(1.0)  # Minimal fallback
 
-            # Step 5: STRICT verification - kiểm tra filter đã được áp dụng
+            # Step 5: STRICT verification - kiá»ƒm tra filter Ä‘Ã£ Ä‘Æ°á»£c Ã¡p dá»¥ng
             verification_passed = False
             try:
                 # Check selected chips
                 chips = driver.find_elements(By.CSS_SELECTOR, '.filter-selected .button-selected span, .filter-selected .chip span, .active-filter span')
                 selected_chips = [c.text.strip() for c in chips if c.text.strip()]
-                logger.info(f"🔍 Selected filter chips: {selected_chips}")
+                logger.info(f"ðŸ” Selected filter chips: {selected_chips}")
                 
                 # EXACT match verification
                 verification_passed = any(brand_name.lower() == chip.lower() for chip in selected_chips)
                 
                 if verification_passed:
-                    logger.info(f"✅ BRAND FILTER VERIFIED: '{brand_name}' is active")
+                    logger.info(f"âœ… BRAND FILTER VERIFIED: '{brand_name}' is active")
                 else:
-                    logger.error(f"❌ BRAND FILTER VERIFICATION FAILED: '{brand_name}' not in active chips: {selected_chips}")
+                    logger.error(f"âŒ BRAND FILTER VERIFICATION FAILED: '{brand_name}' not in active chips: {selected_chips}")
                     
             except Exception as e:
-                logger.error(f"❌ Brand filter verification failed: {e}")
+                logger.error(f"âŒ Brand filter verification failed: {e}")
                 verification_passed = False
 
             # Step 6: Additional verification - check URL or page content
@@ -752,7 +761,7 @@ class HopLongCrawler:
                 try:
                     current_url = driver.current_url
                     if 'filter' in current_url or '?' in current_url:
-                        logger.info(f"🔗 URL indicates filter applied: {current_url}")
+                        logger.info(f"ðŸ”— URL indicates filter applied: {current_url}")
                     
                     # OPTIMIZED: Smart wait for filtered results instead of fixed 1.5s
                     try:
@@ -762,7 +771,7 @@ class HopLongCrawler:
                                 EC.presence_of_element_located((By.CSS_SELECTOR, ".product-list__item"))
                             )
                         )
-                        logger.info("📦 Filtered results loaded")
+                        logger.info("ðŸ“¦ Filtered results loaded")
                     except TimeoutException:
                         logger.debug("Results loading timeout, using minimal wait")
                         time.sleep(0.5)
@@ -773,26 +782,26 @@ class HopLongCrawler:
             return verification_passed
             
         except Exception as e:
-            logger.error(f"❌ CRITICAL ERROR in _apply_brand_filter for '{brand_name}': {e}")
+            logger.error(f"âŒ CRITICAL ERROR in _apply_brand_filter for '{brand_name}': {e}")
             import traceback
             logger.error(f"Traceback: {traceback.format_exc()}")
             return False
 
     def _collect_product_links(self, driver) -> list[str]:
-        """Thu thập toàn bộ link sản phẩm (có thể phải scroll/pagination)."""
+        """Thu tháº­p toÃ n bá»™ link sáº£n pháº©m (cÃ³ thá»ƒ pháº£i scroll/pagination)."""
         links: list[str] = []
 
         def snapshot() -> set[str]:
             result = set()
             
-            # Selectors dựa trên HTML structure thực tế
+            # Selectors dá»±a trÃªn HTML structure thá»±c táº¿
             selectors_to_try = [
-                # Chính xác từ HTML user cung cấp
-                ".product-list__item .thumbnail a",     # Main selector từ HTML
-                ".product-list__item .content h3 a",   # Alternative từ content
+                # ChÃ­nh xÃ¡c tá»« HTML user cung cáº¥p
+                ".product-list__item .thumbnail a",     # Main selector tá»« HTML
+                ".product-list__item .content h3 a",   # Alternative tá»« content
                 ".product-list__item a[href*='/products/']",  # Direct products links
-                "a[href^='/products/']",                # Links bắt đầu /products/
-                "a[href*='/products/']",                # Links chứa /products/
+                "a[href^='/products/']",                # Links báº¯t Ä‘áº§u /products/
+                "a[href*='/products/']",                # Links chá»©a /products/
                 ".grid-list a[href*='/products/']",     # Trong grid-list container
                 
                 # Fallback patterns  
@@ -813,18 +822,18 @@ class HopLongCrawler:
             for selector in selectors_to_try:
                 try:
                     items = driver.find_elements(By.CSS_SELECTOR, selector)
-                    logger.debug(f"🔍 Selector '{selector}' tìm thấy {len(items)} elements")
+                    logger.debug(f"ðŸ” Selector '{selector}' tÃ¬m tháº¥y {len(items)} elements")
                     
                     for a in items:
                         href = a.get_attribute('href') or ''
                         title = a.get_attribute('title') or a.text or ''
                         
                         if href:
-                            # Optimize logging - chỉ log khi debug mode
+                            # Optimize logging - chá»‰ log khi debug mode
                             if logger.isEnabledFor(logging.DEBUG):
                                 logger.debug(f"  Found link: {href} | Title: {title[:50]}")
                             
-                            # Validate product URL patterns - ưu tiên /products/
+                            # Validate product URL patterns - Æ°u tiÃªn /products/
                             is_valid = False
                             if '/products/' in href:  # Priority pattern
                                 is_valid = True
@@ -834,30 +843,30 @@ class HopLongCrawler:
                                 is_valid = True
                                 
                             if is_valid:
-                                # Ensure full URL và chính xác domain
+                                # Ensure full URL vÃ  chÃ­nh xÃ¡c domain
                                 if href.startswith('/'):
                                     href = urljoin(self.base_url, href)
                                 elif not href.startswith('http'):
                                     continue
                                 
-                                # Chỉ lấy links từ hoplongtech.com
+                                # Chá»‰ láº¥y links tá»« hoplongtech.com
                                 if 'hoplongtech.com' in href:
                                     result.add(href)
                                     if logger.isEnabledFor(logging.DEBUG):
-                                        logger.debug(f"    ✅ Added to result set")
+                                        logger.debug(f"    âœ… Added to result set")
                                 elif logger.isEnabledFor(logging.DEBUG):
-                                    logger.debug(f"    ❌ Skipped - wrong domain: {href}")
+                                    logger.debug(f"    âŒ Skipped - wrong domain: {href}")
                                     
                 except Exception as e:
-                    logger.debug(f"❌ Selector '{selector}' failed: {e}")
+                    logger.debug(f"âŒ Selector '{selector}' failed: {e}")
                     continue
             
-            # Enhanced fallback với detailed logging
+            # Enhanced fallback vá»›i detailed logging
             if not result:
-                logger.warning("🔄 Không tìm thấy product links với selectors, thử comprehensive fallback...")
+                logger.warning("ðŸ”„ KhÃ´ng tÃ¬m tháº¥y product links vá»›i selectors, thá»­ comprehensive fallback...")
                 try:
                     all_links = driver.find_elements(By.CSS_SELECTOR, "a[href]")
-                    logger.info(f"🔍 Analyzing {len(all_links)} total links...")
+                    logger.info(f"ðŸ” Analyzing {len(all_links)} total links...")
                     
                     sample_links = []
                     for i, a in enumerate(all_links):
@@ -875,23 +884,23 @@ class HopLongCrawler:
                     logger.debug(f"Sample links found: {sample_links}")
                             
                 except Exception as e:
-                    logger.error(f"❌ Comprehensive fallback failed: {e}")
+                    logger.error(f"âŒ Comprehensive fallback failed: {e}")
             
-            logger.info(f"📦 Total unique product links found: {len(result)}")
+            logger.info(f"ðŸ“¦ Total unique product links found: {len(result)}")
             if result:
-                logger.info(f"✅ Sample valid product links: {list(result)[:5]}")
+                logger.info(f"âœ… Sample valid product links: {list(result)[:5]}")
             else:
-                logger.warning("❌ No product links found - may need to debug page structure")
+                logger.warning("âŒ No product links found - may need to debug page structure")
             
             return result
 
         seen = snapshot()
         links = list(seen)
-        logger.info(f"🔍 Initial scan found {len(links)} product links")
+        logger.info(f"ðŸ” Initial scan found {len(links)} product links")
 
-        # OPTIMIZED: Smart scroll với dynamic detection
+        # OPTIMIZED: Smart scroll vá»›i dynamic detection
         if links:  # Only scroll if we found some links initially
-            logger.info("🔄 Smart scrolling to load more products...")
+            logger.info("ðŸ”„ Smart scrolling to load more products...")
             stagnant_rounds = 0
             last_scroll_position = 0
             
@@ -924,195 +933,144 @@ class HopLongCrawler:
                 
                 # Early exit if no progress for 2 rounds
                 if stagnant_rounds >= 2:
-                    logger.info("🛑 Stopped scrolling - no new links detected")
+                    logger.info("ðŸ›‘ Stopped scrolling - no new links detected")
                     break
                     
                 # Check if we've reached the bottom
                 new_position = driver.execute_script("return window.pageYOffset;")
                 if new_position == last_scroll_position:
-                    logger.info("🛑 Reached page bottom")
+                    logger.info("ðŸ›‘ Reached page bottom")
                     break
                 last_scroll_position = new_position
 
-        # OPTIMIZED: Smart pagination với dynamic detection
-        logger.info("📄 Smart pagination check...")
-        for page_num in range(2):  # Reduced from 3 to 2 for efficiency
+        # Duyá»‡t Ä‘áº§y Ä‘á»§ toÃ n bá»™ trang: click paginate-next Ä‘áº¿n háº¿t trang cuá»‘i
+        logger.info("ðŸ“„ Full pagination traversal (Selenium)...")
+        max_selenium_pages = 200  # Giá»›i háº¡n an toÃ n
+        current_selenium_page = 1
+        stagnant_pages = 0
+
+        while current_selenium_page < max_selenium_pages:
             try:
-                # Try to find pagination button with multiple selectors
+                # TÃ¬m nÃºt "Xem thÃªm" / next pagination
                 next_btn = None
-                for selector in [
-                    "//a[contains(.,'Tiếp') or contains(.,'Sau') or contains(.,'Next')]",
-                    "//button[contains(.,'Xem thêm') or contains(.,'Tải thêm')]",
-                    "//a[contains(@class,'next') or contains(@class,'page-next')]",
-                    "//button[contains(@class,'load-more')]"
-                ]:
+                next_selectors = [
+                    "button.paginate-next:not([disabled])",
+                    "a.paginate-next:not([disabled])",
+                    ".pagination-numbers__left button:not([disabled])",
+                ]
+                for sel in next_selectors:
                     try:
-                        next_btn = driver.find_element(By.XPATH, selector)
-                        if next_btn.is_displayed() and next_btn.is_enabled():
+                        btn = driver.find_element(By.CSS_SELECTOR, sel)
+                        if btn.is_displayed() and btn.is_enabled():
+                            next_btn = btn
                             break
-                    except:
+                    except Exception:
                         continue
-                
+
+                # Náº¿u khÃ´ng tÃ¬m tháº¥y báº±ng CSS, thá»­ XPATH
                 if not next_btn:
-                    logger.info("🛑 No pagination button found")
+                    for xpath in [
+                        "//button[contains(@class,'paginate-next') and not(@disabled)]",
+                        "//a[contains(.,'Tiáº¿p') or contains(.,'Sau') or contains(.,'Next')]",
+                        "//button[contains(.,'Xem thÃªm') or contains(.,'Táº£i thÃªm')]",
+                    ]:
+                        try:
+                            btn = driver.find_element(By.XPATH, xpath)
+                            if btn.is_displayed() and btn.is_enabled():
+                                next_btn = btn
+                                break
+                        except Exception:
+                            continue
+
+                if not next_btn:
+                    logger.info(f"ðŸ›‘ KhÃ´ng tÃ¬m tháº¥y nÃºt next - Ä‘Ã£ cÃ o háº¿t {current_selenium_page} trang (Selenium)")
                     break
-                
-                # Store initial link count
+
                 initial_count = len(seen)
-                
-                # Click and wait for new content
+                driver.execute_script("arguments[0].scrollIntoView({block:'center'});", next_btn)
+                time.sleep(0.3)
                 driver.execute_script("arguments[0].click();", next_btn)
-                
-                # OPTIMIZED: Smart wait for new content loading
+
+                # Chá» ná»™i dung má»›i load
                 try:
-                    WebDriverWait(driver, 5).until(
+                    WebDriverWait(driver, 6).until(
                         lambda d: len(snapshot()) > initial_count
                     )
-                    # Brief wait for stabilization
-                    time.sleep(0.5)  # Reduced from 1.0s
+                    time.sleep(0.3)
                 except TimeoutException:
-                    logger.warning("Pagination timeout, checking results anyway")
-                    time.sleep(0.8)  # Fallback wait
-                
+                    time.sleep(1.0)
+
                 now = snapshot()
                 if len(now) > len(seen):
                     seen = now
                     links = list(seen)
                     new_count = len(now) - initial_count
-                    logger.info(f"📄 Page {page_num + 2}: Found {new_count} new links, total {len(links)}")
+                    current_selenium_page += 1
+                    stagnant_pages = 0
+                    logger.info(f"ðŸ“„ Selenium trang {current_selenium_page}: +{new_count} links, tá»•ng {len(links)}")
                 else:
-                    logger.info("🛑 No new content from pagination")
-                    break
-                    
+                    stagnant_pages += 1
+                    if stagnant_pages >= 2:
+                        logger.info("ðŸ›‘ KhÃ´ng cÃ³ link má»›i sau 2 láº§n - dá»«ng phÃ¢n trang Selenium")
+                        break
+
             except Exception as e:
-                logger.debug(f"Pagination error: {e}")
+                logger.debug(f"Pagination Selenium error: {e}")
                 break
 
         final_links = sorted(links)
-        logger.info(f"✅ Final product links collected: {len(final_links)}")
-        
+        logger.info(f"âœ… Final product links collected (Selenium): {len(final_links)} tá»« {current_selenium_page} trang")
         return final_links
 
-    def _collect_product_links_bs4(self, url: str, session: requests.Session = None) -> list[str]:
-        """Thu thập product links từ một trang sử dụng BeautifulSoup - version tối ưu."""
-        if session is None:
-            session = self.session
-            
-        try:
-            logger.debug(f"🔍 Collecting product links from: {url}")
-            
-            # Fetch page content với retry
-            def _fetch_page():
-                resp = session.get(url, timeout=30)
-                resp.raise_for_status()
-                return resp.text
-            
-            html_content = self.retry_with_backoff(_fetch_page, max_retries=3, base_delay=1.5)
-            soup = BeautifulSoup(html_content, 'html.parser')
-            
-            links = set()
-            
-            # Product link selectors - theo priority
-            selectors_to_try = [
-                # Priority selectors từ HTML structure thực tế
-                ".product-list__item .thumbnail a",
-                ".product-list__item .content h3 a", 
-                ".product-list__item a[href*='/products/']",
-                "a[href^='/products/']",
-                "a[href*='/products/']",
-                ".grid-list a[href*='/products/']",
-                
-                # Fallback patterns
-                "a[href^='/product/']",
-                "a[href*='/product/']", 
-                "a[href^='/san-pham/']",
-                "a[href*='/san-pham/']",
-                ".product-item a",
-                ".product-card a",
-                ".product-list a",
-                "a.product-link",
-                ".col-product a",
-                ".grid-item a",
-                ".list-item a",
-                "div[class*='product'] a"
-            ]
-            
-            for selector in selectors_to_try:
-                try:
-                    elements = soup.select(selector)
-                    logger.debug(f"🔍 Selector '{selector}' found {len(elements)} elements")
-                    
-                    for element in elements:
-                        href = element.get('href', '').strip()
-                        if not href:
-                            continue
-                            
-                        # Validate product URL patterns
-                        is_valid = False
-                        if '/products/' in href:  # Priority pattern
-                            is_valid = True
-                        elif any(pattern in href for pattern in ['/product/', '/san-pham/']):
-                            is_valid = True
-                        elif any(keyword in href.lower() for keyword in ['item', 'detail', 'view']) and 'hoplongtech.com' in href:
-                            is_valid = True
-                            
-                        if is_valid:
-                            # Ensure full URL
-                            if href.startswith('/'):
-                                href = urljoin(self.base_url, href)
-                            elif not href.startswith('http'):
-                                continue
-                                
-                            # Only accept hoplongtech.com domain
-                            if 'hoplongtech.com' in href:
-                                links.add(href)
-                                if logger.isEnabledFor(logging.DEBUG):
-                                    logger.debug(f"  ✅ Added: {href}")
-                                    
-                except Exception as e:
-                    logger.debug(f"❌ Selector '{selector}' failed: {e}")
-                    continue
-            
-            # Enhanced fallback nếu không tìm thấy gì
-            if not links:
-                logger.warning("🔄 No product links found with primary selectors, trying comprehensive fallback...")
-                try:
-                    all_links = soup.find_all('a', href=True)
-                    logger.debug(f"🔍 Analyzing {len(all_links)} total links...")
-                    
-                    for a in all_links:
-                        href = a.get('href', '').strip()
-                        if href and any(pattern in href for pattern in ['/products/', '/product/', '/san-pham/']):
-                            if 'hoplongtech.com' in href:
-                                if href.startswith('/'):
-                                    href = urljoin(self.base_url, href)
-                                links.add(href)
-                                
-                except Exception as e:
-                    logger.error(f"❌ Comprehensive fallback failed: {e}")
-            
-            result = sorted(list(links))
-            logger.info(f"📦 Found {len(result)} product links from: {url}")
-            
-            if result and logger.isEnabledFor(logging.DEBUG):
-                logger.debug(f"✅ Sample links: {result[:3]}")
-            elif not result:
-                logger.warning(f"❌ No product links found on page: {url}")
-                
-            return result
-            
-        except Exception as e:
-            logger.error(f"❌ Error collecting product links from {url}: {e}")
-            return []
+    def _collect_product_links_bs4(self, url: str, session: requests.Session = None, soup: BeautifulSoup = None) -> list[str]:
+        """Thu thập product links từ một trang sử dụng BeautifulSoup - version siêu tốc độ."""
+        if soup is None:
+            if session is None:
+                session = self.session
+            try:
+                def _fetch_page():
+                    resp = session.get(url, timeout=20)
+                    resp.raise_for_status()
+                    return resp.text
+                html_content = self.retry_with_backoff(_fetch_page, max_retries=2, base_delay=1.0)
+                if not html_content:
+                    return []
+                soup = BeautifulSoup(html_content, 'html.parser')
+            except Exception as e:
+                logger.debug(f"Lỗi tải trang {url}: {e}")
+                return []
+
+        links = set()
+        for a in soup.find_all('a', href=True):
+            href = a.get('href', '').strip()
+            if '/products/' in href:
+                clean_href = href.split('?')[0].split('#')[0].rstrip('/')
+                if clean_href.startswith('/'):
+                    clean_href = urljoin(self.base_url, clean_href)
+                if 'hoplongtech.com' in clean_href:
+                    links.add(clean_href)
+
+        if not links:
+            for a in soup.find_all('a', href=True):
+                href = a.get('href', '').strip()
+                if any(k in href for k in ['/product/', '/san-pham/']):
+                    clean_href = href.split('?')[0].split('#')[0].rstrip('/')
+                    if clean_href.startswith('/'):
+                        clean_href = urljoin(self.base_url, clean_href)
+                    if 'hoplongtech.com' in clean_href:
+                        links.add(clean_href)
+
+        result = sorted(list(links))
+        return result
 
     def _extract_pagination_info(self, soup: BeautifulSoup) -> dict:
         """
-        Extract pagination information từ HTML structure:
+        Extract pagination information tá»« HTML structure hoplongtech.com:
         <div class="pagination-wrap">
             <div class="pagination-numbers__right">
                 <span class="text">Trang</span>
                 <p class="paginate-item">1</p>
-                <span class="text">của 5</span>
+                <span class="text">cá»§a 5</span>
             </div>
         </div>
         """
@@ -1124,49 +1082,51 @@ class HopLongCrawler:
         }
         
         try:
-            # Tìm pagination container
+            # TÃ¬m pagination container
             pagination_wrap = soup.select_one('div.pagination-wrap')
             if not pagination_wrap:
-                logger.debug("❌ No pagination-wrap found")
+                logger.debug("âŒ No pagination-wrap found")
                 return pagination_info
             
-            # Extract current page và total pages từ "Trang X của Y"
+            # Extract current page vÃ  total pages tá»« "Trang X cá»§a Y"
             pagination_right = pagination_wrap.select_one('.pagination-numbers__right')
             if pagination_right:
                 try:
-                    # Lấy current page từ <p class="paginate-item">
+                    # Láº¥y current page tá»« <p class="paginate-item">
                     current_page_elem = pagination_right.select_one('p.paginate-item')
                     if current_page_elem:
                         current_page_text = current_page_elem.get_text(strip=True)
                         pagination_info['current_page'] = int(current_page_text)
-                        logger.debug(f"📄 Current page: {pagination_info['current_page']}")
+                        logger.debug(f"ðŸ“„ Current page: {pagination_info['current_page']}")
                     
-                    # Lấy total pages từ text pattern "của X"
+                    # Láº¥y total pages tá»« text pattern "cá»§a X"
                     span_elements = pagination_right.find_all('span', class_='text')
                     for span in span_elements:
                         text = span.get_text(strip=True)
-                        if text.startswith('của '):
-                            total_pages_text = text.replace('của ', '').strip()
+                        if 'cá»§a' in text:
+                            # Handle both "cá»§a 5" vÃ  "cá»§a\xa05"
+                            total_pages_text = re.sub(r'cá»§a\s*', '', text).strip()
                             try:
                                 pagination_info['total_pages'] = int(total_pages_text)
-                                logger.debug(f"📄 Total pages: {pagination_info['total_pages']}")
+                                logger.debug(f"ðŸ“„ Total pages: {pagination_info['total_pages']}")
                                 break
                             except ValueError:
-                                logger.debug(f"⚠️ Cannot parse total pages from: {total_pages_text}")
+                                logger.debug(f"âš ï¸  Cannot parse total pages from: {total_pages_text}")
                                 
                 except Exception as e:
-                    logger.debug(f"❌ Error parsing pagination numbers: {e}")
+                    logger.debug(f"â Œ Error parsing pagination numbers: {e}")
             
-            # Check if có next button available
+            # Check if cÃ³ next button available
             pagination_left = pagination_wrap.select_one('.pagination-numbers__left')
             if pagination_left:
-                # Tìm "Xem thêm" button
                 next_button = pagination_left.select_one('button.paginate-next')
                 if next_button:
-                    # Check if button is not disabled
-                    is_disabled = next_button.get('disabled') or 'disabled' in next_button.get('class', [])
+                    is_disabled = (
+                        next_button.get('disabled') is not None or
+                        'disabled' in next_button.get('class', [])
+                    )
                     pagination_info['next_button_available'] = not is_disabled
-                    logger.debug(f"🔘 Next button available: {pagination_info['next_button_available']}")
+                    logger.debug(f"ðŸ”˜ Next button available: {pagination_info['next_button_available']}")
             
             # Determine if has next page
             pagination_info['has_next'] = (
@@ -1174,172 +1134,324 @@ class HopLongCrawler:
                 pagination_info['next_button_available']
             )
             
-            logger.info(f"📊 Pagination info: Page {pagination_info['current_page']}/{pagination_info['total_pages']}, Has next: {pagination_info['has_next']}")
+            logger.info(f"ðŸ“Š Pagination info: Page {pagination_info['current_page']}/{pagination_info['total_pages']}, Has next: {pagination_info['has_next']}")
             return pagination_info
             
         except Exception as e:
-            logger.error(f"❌ Error extracting pagination info: {e}")
+            logger.error(f"âŒ Error extracting pagination info: {e}")
             return pagination_info
 
-    def _fetch_all_pages_bs4(self, base_url: str, session: requests.Session = None, max_pages: int = 100) -> list[str]:
+    def _detect_pagination_hoplong(self, url: str) -> dict:
         """
-        Fetch tất cả product links từ tất cả pages của filtered results sử dụng BeautifulSoup.
-        base_url: URL của trang đầu tiên (đã có brand filter applied)
+        PhÃ¡t hiá»‡n tá»•ng sá»‘ trang vÃ  URL pattern phÃ¢n trang cho hoplongtech.com.
+        Há»c theo CDHA's detect_pagination.
+        Tráº£ vá»: {total_pages, url_pattern, products_per_page}
+        """
+        result = {'total_pages': 1, 'url_pattern': 'query', 'products_per_page': 0}
+        try:
+            def _fetch():
+                resp = self.session.get(url, timeout=30)
+                resp.raise_for_status()
+                return resp.text
+
+            html = self.retry_with_backoff(_fetch, max_retries=3, base_delay=1.5)
+            if not html:
+                logger.warning(f"HTML rỗng từ {url}!")
+                return result
+
+            try:
+                with open('logs/debug_page1.html', 'w', encoding='utf-8', errors='ignore') as f_dbg:
+                    f_dbg.write(html)
+            except Exception:
+                pass
+
+            logger.info(f"HTML size from {url}: {len(html)} bytes")
+            soup = BeautifulSoup(html, 'html.parser')
+
+            all_a = soup.find_all('a', href=True)
+            logger.info(f"Total a tags with href: {len(all_a)}")
+            prod_a = [a['href'] for a in all_a if '/products/' in a['href']]
+            logger.info(f"Total a tags with /products/: {len(prod_a)}")
+            if prod_a:
+                logger.info(f"Sample /products/ hrefs: {prod_a[:3]}")
+
+            # Äáº¿m sáº£n pháº©m trÃªn trang Ä‘áº§u
+            product_links_page1 = set()
+            for a in soup.select('a[href*="/products/"], a[href^="/products/"]'):
+                href = a.get('href', '')
+                if '/products/' in href:
+                    product_links_page1.add(href)
+            result['products_per_page'] = len(product_links_page1)
+            logger.info(f"ðŸ“Š Sáº£n pháº©m trang 1: {result['products_per_page']}")
+
+            # Bước 1: Tìm pagination-wrap → parse "của X"
+            pagination_wrap = soup.select_one('div.pagination-wrap')
+            if pagination_wrap:
+                pagination_right = pagination_wrap.select_one('.pagination-numbers__right')
+                if pagination_right:
+                    pr_text = pagination_right.get_text(strip=True)
+                    m = re.search(r'(?:của|cá»§a|of|\/)\s*(\d+)', pr_text, re.IGNORECASE)
+                    if m:
+                        try:
+                            result['total_pages'] = int(m.group(1))
+                            logger.info(f"✅ Tổng số trang từ HTML: {result['total_pages']}")
+                        except ValueError:
+                            pass
+                    else:
+                        for span in pagination_right.find_all('span', class_='text'):
+                            text = span.get_text(strip=True)
+                            m_span = re.search(r'(\d+)', text)
+                            if m_span:
+                                try:
+                                    result['total_pages'] = int(m_span.group(1))
+                                    logger.info(f"✅ Tổng số trang từ span: {result['total_pages']}")
+                                    break
+                                except ValueError:
+                                    pass
+
+            # BÆ°á»›c 2: Náº¿u chÆ°a tÃ¬m Ä‘Æ°á»£c hoáº·c tá»•ng trang = 1, thá»­ kiá»ƒm tra trang 2
+            # Ä‘á»ƒ phÃ¡t hiá»‡n URL pattern Ä‘Ãºng
+            if result['total_pages'] <= 1:
+                logger.info("ðŸ” Thá»­ phÃ¡t hiá»‡n URL pattern phÃ¢n trang...")
+                test_patterns = []
+
+                # Pattern 1: ?page=2 hoáº·c &page=2
+                sep = '&' if '?' in url else '?'
+                test_patterns.append((f"{url}{sep}page=2", 'query'))
+
+                # Pattern 2: ?p=2
+                test_patterns.append((f"{url}{sep}p=2", 'query_p'))
+
+                for test_url, pattern_name in test_patterns:
+                    try:
+                        def _fetch_test(u=test_url):
+                            r = self.session.get(u, timeout=20)
+                            r.raise_for_status()
+                            return r.text
+
+                        test_html = self.retry_with_backoff(_fetch_test, max_retries=2, base_delay=1.0)
+                        test_soup = BeautifulSoup(test_html, 'html.parser')
+
+                        # Kiá»ƒm tra cÃ³ sáº£n pháº©m khÃ¡c khÃ´ng
+                        test_links = set()
+                        for a in test_soup.select('a[href*="/products/"]'):
+                            href = a.get('href', '')
+                            if '/products/' in href:
+                                test_links.add(href)
+
+                        if test_links and test_links != product_links_page1:
+                            logger.info(f"âœ… Pattern '{pattern_name}' hoáº¡t Ä‘á»™ng: {len(test_links)} sáº£n pháº©m")
+                            result['url_pattern'] = pattern_name
+
+                            # Äá»“ng thá»i thá»­ parse tá»•ng sá»‘ trang tá»« test_soup
+                            pw = test_soup.select_one('div.pagination-wrap')
+                            if pw:
+                                pr = pw.select_one('.pagination-numbers__right')
+                                if pr:
+                                    for span in pr.find_all('span', class_='text'):
+                                        t = span.get_text(strip=True)
+                                        if 'cá»§a' in t:
+                                            try:
+                                                result['total_pages'] = int(re.sub(r'cá»§a\s*', '', t).strip())
+                                                logger.info(f"âœ… Tá»•ng trang tá»« trang 2: {result['total_pages']}")
+                                            except ValueError:
+                                                pass
+                            break
+                        else:
+                            logger.debug(f"âŒ Pattern '{pattern_name}' khÃ´ng cho sáº£n pháº©m má»›i")
+                    except Exception as e:
+                        logger.debug(f"Pattern test {pattern_name} failed: {e}")
+                        continue
+
+            # BÆ°á»›c 3: Náº¿u váº«n chÆ°a biáº¿t tá»•ng trang, thÄƒm dÃ² Ä‘á»™ng (nhÆ° CDHA)
+            if result['total_pages'] <= 1 and result['products_per_page'] > 0:
+                logger.info("ðŸ” ThÄƒm dÃ² Ä‘á»™ng Ä‘á»ƒ tÃ¬m tá»•ng sá»‘ trang...")
+                current = 1
+                consecutive_empty = 0
+                last_signature = None
+                dup_count = 0
+
+                while current < 500:
+                    next_p = current + 1
+                    test_url = self._make_hoplong_page_url(url, next_p, result['url_pattern'])
+                    try:
+                        def _fetch_page(u=test_url):
+                            r = self.session.get(u, timeout=20)
+                            r.raise_for_status()
+                            return r.text
+
+                        pg_html = self.retry_with_backoff(_fetch_page, max_retries=2, base_delay=1.0)
+                        pg_soup = BeautifulSoup(pg_html, 'html.parser')
+                        pg_links = [a.get('href', '') for a in pg_soup.select('a[href*="/products/"]') if '/products/' in a.get('href', '')]
+
+                        if not pg_links:
+                            consecutive_empty += 1
+                            if consecutive_empty >= 2:
+                                logger.info(f"âœ… Dá»«ng táº¡i trang {current}: 2 trang liÃªn tiáº¿p rá»—ng")
+                                break
+                            current += 1
+                            continue
+
+                        consecutive_empty = 0
+                        sig = tuple(sorted(pg_links[:20]))
+                        if sig == last_signature:
+                            dup_count += 1
+                            if dup_count >= 2:
+                                logger.info(f"âœ… Dá»«ng táº¡i trang {current}: ná»™i dung láº·p")
+                                break
+                        else:
+                            last_signature = sig
+                            dup_count = 0
+
+                        result['total_pages'] = next_p
+                        current = next_p
+                        logger.debug(f"   Trang {next_p}: {len(pg_links)} sáº£n pháº©m")
+
+                    except Exception as e:
+                        consecutive_empty += 1
+                        if consecutive_empty >= 2:
+                            break
+                        current += 1
+
+            logger.info(f"ðŸ“„ PhÃ¡t hiá»‡n: {result['total_pages']} trang, pattern='{result['url_pattern']}'")
+            return result
+
+        except Exception as e:
+            logger.error(f"âŒ Lá»—i detect_pagination_hoplong: {e}")
+            return result
+
+    def _make_hoplong_page_url(self, base_url: str, page_number: int, pattern: str = 'query') -> str:
+        """
+        Táº¡o URL phÃ¢n trang cho hoplongtech.com.
+        Há»c theo CDHA's make_pagination_url.
+        pattern: 'query' â†’ ?page=N / &page=N
+                 'query_p' â†’ ?p=N / &p=N
+        """
+        if page_number <= 1:
+            return base_url
+        try:
+            # XÃ³a tham sá»‘ page/p cÅ© náº¿u cÃ³
+            clean_url = re.sub(r'[&?]page=\d+', '', base_url)
+            clean_url = re.sub(r'[&?]p=\d+', '', clean_url)
+            clean_url = clean_url.rstrip('?&')
+
+            sep = '&' if '?' in clean_url else '?'
+            param = 'p' if pattern == 'query_p' else 'page'
+            return f"{clean_url}{sep}{param}={page_number}"
+        except Exception as e:
+            logger.error(f"âŒ Lá»—i make_hoplong_page_url: {e}")
+            sep = '&' if '?' in base_url else '?'
+            return f"{base_url}{sep}page={page_number}"
+
+    def _fetch_all_pages_bs4(self, base_url: str, session: requests.Session = None, max_pages: int = 200, shared_seen_links: set = None, seen_lock = None) -> list[str]:
+        """
+        Fetch tất cả product links song song theo batch và khử trùng lặp tức thời.
+        Dừng khi hết sản phẩm thực sự hoặc đạt ngưỡng trang tối đa.
         """
         if session is None:
             session = self.session
-            
+
         all_links = []
-        current_page = 1
-        consecutive_empty_pages = 0  # Safety valve
-        
+        all_links_set = set()
+
         try:
-            logger.info(f"🔄 Starting multi-page fetch from: {base_url}")
-            logger.info(f"🔧 Initial max_pages limit: {max_pages}")
-            
-            while current_page <= max_pages:
+            logger.info(f"🔄 Bắt đầu cào đa trang từ: {base_url}")
+            pagination_detect = self._detect_pagination_hoplong(base_url)
+            detected_total = pagination_detect['total_pages']
+            if max_pages <= 0:
+                total_pages = detected_total
+            else:
+                total_pages = min(detected_total, max_pages)
+
+            url_pattern = pagination_detect['url_pattern']
+
+            logger.info(f"📄 Tổng số trang phát hiện: {detected_total} (sẽ quét: {total_pages}, pattern: {url_pattern})")
+
+            # Quét song song theo lô (8 trang / đợt)
+            batch_size = 8
+            current_page = 1
+            consecutive_empty = 0
+            consecutive_duplicates = 0
+
+            def fetch_page_worker(p_num):
+                pu = self._make_hoplong_page_url(base_url, p_num, url_pattern)
                 try:
-                    # IMPROVED: Construct page URL với advanced logic
-                    if current_page == 1:
-                        page_url = base_url
-                        logger.info(f"📄 Fetching page {current_page} (base URL): {page_url}")
-                    else:
-                        # Multiple URL patterns to try
-                        url_patterns = [
-                            f"{base_url}{'&' if '?' in base_url else '?'}page={current_page}",
-                            f"{base_url}{'&' if '?' in base_url else '?'}p={current_page}",
-                            f"{base_url}/page/{current_page}",
-                            f"{base_url}?page={current_page}" if '?' not in base_url else f"{base_url}&page={current_page}"
-                        ]
-                        
-                        # Use first pattern for now, thêm logic để test multiple patterns nếu cần
-                        page_url = url_patterns[0]
-                        logger.info(f"📄 Fetching page {current_page}: {page_url}")
-                        logger.debug(f"📄 Alternative URL patterns available: {url_patterns[1:]}")
-                    
-                    # Fetch page content với retry
-                    def _fetch_page():
-                        resp = session.get(page_url, timeout=30)
+                    def _fetch():
+                        resp = session.get(pu, timeout=20)
                         resp.raise_for_status()
                         return resp.text
-                    
-                    html_content = self.retry_with_backoff(_fetch_page, max_retries=3, base_delay=1.5)
-                    soup = BeautifulSoup(html_content, 'html.parser')
-                    
-                    # Extract pagination info từ current page
-                    pagination_info = self._extract_pagination_info(soup)
-                    
-                    # Collect product links từ current page
-                    page_links = self._collect_product_links_bs4(page_url, session)
-                    
-                    if page_links:
-                        # ENHANCED: Check for duplicates và track unique links
-                        unique_page_links = [link for link in page_links if link not in all_links]
-                        all_links.extend(unique_page_links)
-                        
-                        # Reset consecutive empty pages counter
-                        consecutive_empty_pages = 0
-                        
-                        logger.info(f"✅ Page {current_page}: Found {len(page_links)} products ({len(unique_page_links)} new), Total: {len(all_links)}")
-                        
-                        # Additional debugging
-                        if len(unique_page_links) != len(page_links):
-                            logger.warning(f"⚠️ Page {current_page}: {len(page_links) - len(unique_page_links)} duplicate products detected")
-                            
-                        # Sample products for debugging
-                        if logger.isEnabledFor(logging.DEBUG) and page_links:
-                            logger.debug(f"📦 Sample products from page {current_page}: {page_links[:3]}")
-                    else:
-                        consecutive_empty_pages += 1
-                        logger.warning(f"⚠️ Page {current_page}: No products found (consecutive empty: {consecutive_empty_pages})")
-                        
-                        # Safety valve: stop after 3 consecutive empty pages
-                        if consecutive_empty_pages >= 3:
-                            logger.warning(f"🛑 Stopping after {consecutive_empty_pages} consecutive empty pages - likely pagination ended")
-                            break
-                            
-                        # If no products found on page 2+, it might mean pagination ended
-                        if current_page > 1 and consecutive_empty_pages >= 2:
-                            logger.warning(f"⚠️ Multiple empty pages detected, likely pagination ended")
-                            break
-                    
-                    # ENHANCED: Check if we should continue với detailed logging
-                    logger.debug(f"📊 Pagination check - Current: {pagination_info['current_page']}, Total: {pagination_info['total_pages']}, Has next: {pagination_info['has_next']}")
-                    
-                    if not pagination_info['has_next']:
-                        logger.info(f"🏁 Pagination indicates last page reached: {current_page}/{pagination_info['total_pages']}")
-                        break
-                        
-                    # Verify current page number matches expected
-                    if pagination_info['current_page'] != current_page:
-                        logger.warning(f"⚠️ Page number mismatch: expected {current_page}, got {pagination_info['current_page']}")
-                    
-                    # Update max_pages if we know total pages - KHÔNG giới hạn bằng max_pages ban đầu
-                    if pagination_info['total_pages'] > 1:
-                        # Allow crawling up to actual total pages, không bị giới hạn bởi max_pages
-                        actual_max = pagination_info['total_pages']
-                        logger.info(f"📊 Website has {actual_max} total pages, will crawl all of them")
-                        # Chỉ cập nhật max_pages nếu nó lớn hơn giá trị hiện tại
-                        if actual_max > max_pages:
-                            max_pages = actual_max
-                            logger.info(f"📊 Increased max_pages to: {max_pages} to cover all pages")
-                    
-                    current_page += 1
-                    
-                    # Small delay để tránh rate limiting
-                    time.sleep(0.5)
-                    
-                except requests.exceptions.RequestException as e:
-                    logger.error(f"❌ Network error on page {current_page}: {e}")
-                    # Try next page nếu current page fail
-                    current_page += 1
-                    if current_page > max_pages:
-                        break
-                    time.sleep(2.0)  # Longer delay after error
-                    continue
-                    
+                    html = self.retry_with_backoff(_fetch, max_retries=2, base_delay=1.0)
+                    if not html:
+                        return p_num, []
+                    soup = BeautifulSoup(html, 'html.parser')
+                    p_links = self._collect_product_links_bs4(pu, session, soup=soup)
+                    return p_num, p_links
                 except Exception as e:
-                    logger.error(f"❌ Error processing page {current_page}: {e}")
-                    current_page += 1
-                    if current_page > max_pages:
-                        break
-                    continue
-            
-            # Remove duplicates và sort với enhanced reporting
-            unique_links = sorted(list(set(all_links)))
-            pages_crawled = current_page - 1
-            
-            logger.info(f"🎯 MULTI-PAGE FETCH COMPLETED:")
-            logger.info(f"   📄 Pages crawled: {pages_crawled}")
-            logger.info(f"   📦 Total products found: {len(all_links)} (raw)")
-            logger.info(f"   🔗 Unique products: {len(unique_links)}")
-            logger.info(f"   ♻️ Duplicates removed: {len(all_links) - len(unique_links)}")
-            
-            # Additional insights
-            if pages_crawled > 0:
-                avg_products_per_page = len(unique_links) / pages_crawled
-                logger.info(f"   📊 Average products per page: {avg_products_per_page:.1f}")
-            
-            # Warning if numbers seem low
-            if len(unique_links) < 100:
-                logger.warning(f"⚠️ Only {len(unique_links)} products found - this seems low, may indicate pagination issues")
-            
-            return unique_links
-            
-        except Exception as e:
-            logger.error(f"❌ Critical error in multi-page fetch: {e}")
-            import traceback
-            logger.debug(f"Traceback: {traceback.format_exc()}")
-            return all_links  # Return partial results
+                    logger.debug(f"Lỗi tải trang {p_num}: {e}")
+                    return p_num, []
 
-    # ======= PRODUCT DETAILS =======
+            while current_page <= total_pages:
+                chunk = list(range(current_page, min(current_page + batch_size, total_pages + 1)))
+
+                with concurrent.futures.ThreadPoolExecutor(max_workers=len(chunk)) as executor:
+                    chunk_results = list(executor.map(fetch_page_worker, chunk))
+
+                chunk_results.sort(key=lambda x: x[0])
+
+                for p, p_links in chunk_results:
+                    if not p_links:
+                        consecutive_empty += 1
+                        logger.debug(f"   Trang {p}: 0 sản phẩm")
+                        if consecutive_empty >= 2:
+                            logger.info(f"🛑 Dừng quét tại trang {p}: 2 trang liên tiếp không có sản phẩm (hết danh mục)")
+                            break
+                    else:
+                        consecutive_empty = 0
+                        new_links = []
+                        for l in p_links:
+                            if l not in all_links_set:
+                                if shared_seen_links is not None and seen_lock is not None:
+                                    with seen_lock:
+                                        if l not in shared_seen_links:
+                                            shared_seen_links.add(l)
+                                            new_links.append(l)
+                                else:
+                                    new_links.append(l)
+
+                        if new_links:
+                            all_links.extend(new_links)
+                            all_links_set.update(new_links)
+                            consecutive_duplicates = 0
+                            logger.info(f"   ✅ Trang {p}: +{len(new_links)} SP mới (Tổng: {len(all_links)})")
+                        else:
+                            consecutive_duplicates += 1
+                            logger.debug(f"   Trang {p}: 0 SP mới ({consecutive_duplicates} trang trùng lặp)")
+
+                        # Cơ chế dừng khi trùng lặp đã bị loại bỏ theo yêu cầu quét toàn bộ page
+                        # if consecutive_duplicates >= 30:
+                        #     logger.info(f"🛑 Dừng quét sớm tại trang {p}: 30 trang liên tiếp không có sản phẩm mới")
+                        #     break
+
+                if consecutive_empty >= 2:
+                    break
+
+                current_page += batch_size
+
+            unique_links = sorted(list(all_links_set))
+            logger.info(f"🎯 Hoàn thành quét danh mục {base_url}: {len(unique_links)} link duy nhất")
+            return unique_links
+
+        except Exception as e:
+            logger.error(f"❌ Lỗi _fetch_all_pages_bs4 từ {base_url}: {e}")
+            return sorted(list(all_links_set))
+
     def _parse_specs_from_technical_div(self, technical_div: BeautifulSoup) -> list[tuple[str, str]]:
         """
-        Trích xuất cặp (title, content) từ #technical theo structure:
+        TrÃ­ch xuáº¥t cáº·p (title, content) tá»« #technical theo structure:
         <ul>
             <li>
-                <span class="title">Tên sản phẩm</span>
-                <span class="content">Cảm biến tiệm cận E2B-M12KN05-WP-B2 2M OMI Omron</span>
+                <span class="title">TÃªn sáº£n pháº©m</span>
+                <span class="content">Cáº£m biáº¿n tiá»‡m cáº­n E2B-M12KN05-WP-B2 2M OMI Omron</span>
             </li>
         </ul>
         """
@@ -1347,9 +1459,9 @@ class HopLongCrawler:
         if not technical_div:
             return pairs
 
-        logger.debug("🔍 Parsing technical specifications...")
+        logger.debug("ðŸ” Parsing technical specifications...")
         
-        # Extract từ ul/li/span structure theo HTML user cung cấp
+        # Extract tá»« ul/li/span structure theo HTML user cung cáº¥p
         ul_elements = technical_div.find_all('ul')
         logger.debug(f"Found {len(ul_elements)} ul elements")
         
@@ -1358,7 +1470,7 @@ class HopLongCrawler:
             logger.debug(f"UL {ul_idx + 1}: Found {len(li_elements)} li elements")
             
             for li_idx, li in enumerate(li_elements):
-                # Tìm span với class='title' và class='content'
+                # TÃ¬m span vá»›i class='title' vÃ  class='content'
                 title_span = li.find('span', class_='title')
                 content_span = li.find('span', class_='content')
                 
@@ -1367,20 +1479,20 @@ class HopLongCrawler:
                 
                 logger.debug(f"  LI {li_idx + 1}: '{title}' = '{content}'")
                 
-                # Chỉ thêm vào nếu có ít nhất title hoặc content
+                # Chá»‰ thÃªm vÃ o náº¿u cÃ³ Ã­t nháº¥t title hoáº·c content
                 if title or content:
                     pairs.append((title, content))
         
-        # Fallback: nếu không tìm thấy gì bằng structure chính xác, thử các pattern khác
+        # Fallback: náº¿u khÃ´ng tÃ¬m tháº¥y gÃ¬ báº±ng structure chÃ­nh xÃ¡c, thá»­ cÃ¡c pattern khÃ¡c
         if not pairs:
-            logger.warning("🔄 No specs found with primary structure, trying fallback patterns...")
+            logger.warning("ðŸ”„ No specs found with primary structure, trying fallback patterns...")
             
-            # Thử tìm tất cả li elements có text
+            # Thá»­ tÃ¬m táº¥t cáº£ li elements cÃ³ text
             all_li = technical_div.find_all('li')
             for li in all_li:
                 text = li.get_text(strip=True)
                 if ':' in text:
-                    # Split theo dấu : đầu tiên
+                    # Split theo dáº¥u : Ä‘áº§u tiÃªn
                     parts = text.split(':', 1)
                     if len(parts) == 2:
                         title, content = parts[0].strip(), parts[1].strip()
@@ -1388,117 +1500,181 @@ class HopLongCrawler:
                             pairs.append((title, content))
                             logger.debug(f"  Fallback: '{title}' = '{content}'")
         
-        logger.info(f"📊 Total specifications extracted: {len(pairs)}")
+        logger.info(f"ðŸ“Š Total specifications extracted: {len(pairs)}")
         return pairs
 
-    def _build_specs_html(self, technical_div: BeautifulSoup, pairs: list[tuple[str, str]]) -> str:
+    def _build_specs_html(self, technical_div: BeautifulSoup, pairs: list[tuple[str, str]], product_code: str = "", product_name: str = "") -> str:
         """Tạo HTML thông số kỹ thuật theo yêu cầu, thêm Copyright ở cuối."""
-        # Nếu technical_div có table: giữ nguyên, chỉ thêm hàng Copyright vào cuối tbody
+        rows = [
+            '<table id="specifications" border="1" cellpadding="8" cellspacing="0" style="border-collapse: collapse; font-family: Arial; width: 100%;">',
+            '<thead><tr style="background-color: #f2f2f2;"><th>Thông số</th><th>Giá trị</th></tr></thead>',
+            '<tbody>'
+        ]
+        
+        # Thêm Mã sản phẩm và Tên sản phẩm lên đầu
+        if product_code:
+            rows.append(f'<tr><td style="font-weight: bold;">Mã sản phẩm</td><td>{product_code}</td></tr>')
+        if product_name:
+            rows.append(f'<tr><td style="font-weight: bold;">Tên sản phẩm</td><td>{product_name}</td></tr>')
+            
+        exclude_keys = {"mã sản phẩm", "tên sản phẩm", "copyright"}
+        has_added_pairs = False
+        
         if technical_div:
             table = technical_div.find('table')
             if table:
-                # loại bỏ <col>/<colgroup>
-                for col in table.find_all(['col', 'colgroup']):
-                    col.decompose()
-                tbody = table.find('tbody') or table
-                tr = technical_div.new_tag('tr')
-                td1 = technical_div.new_tag('td')
-                td1['style'] = 'font-weight: bold;'
-                td1.string = 'Copyright'
-                td2 = technical_div.new_tag('td')
-                td2.string = 'Haiphongtech.vn'
-                tr.append(td1)
-                tr.append(td2)
-                tbody.append(tr)
-                return str(table)
-
-        # Fallback: dựng bảng 2 cột từ pairs
-        rows = [
-            '<table id="specifications" border="1" cellpadding="8" cellspacing="0" style="border-collapse:collapse;width:100%;font-family:Arial;">',
-            '<thead><tr style="background:#f2f2f2;"><th>Thông số</th><th>Giá trị</th></tr></thead>',
-            '<tbody>'
-        ]
-        for k, v in pairs:
-            k_esc = (k or '').replace('<', '&lt;').replace('>', '&gt;')
-            v_esc = (v or '').replace('<', '&lt;').replace('>', '&gt;')
-            if k_esc or v_esc:
-                rows.append(f'<tr><td><strong>{k_esc}</strong></td><td>{v_esc}</td></tr>')
+                trs = table.find_all('tr')
+                for tr in trs:
+                    tds = tr.find_all(['td', 'th'])
+                    if len(tds) >= 2:
+                        k = tds[0].get_text(strip=True)
+                        v = tds[1].get_text(strip=True)
+                        if k.lower().strip() in exclude_keys:
+                            continue
+                        k_esc = k.replace('<', '&lt;').replace('>', '&gt;')
+                        v_esc = v.replace('<', '&lt;').replace('>', '&gt;')
+                        rows.append(f'<tr><td style="font-weight: bold;">{k_esc}</td><td>{v_esc}</td></tr>')
+                        has_added_pairs = True
+        
+        if not has_added_pairs and pairs:
+            for k, v in pairs:
+                if k.lower().strip() in exclude_keys:
+                    continue
+                k_esc = (k or '').replace('<', '&lt;').replace('>', '&gt;')
+                v_esc = (v or '').replace('<', '&lt;').replace('>', '&gt;')
+                if k_esc or v_esc:
+                    rows.append(f'<tr><td style="font-weight: bold;">{k_esc}</td><td>{v_esc}</td></tr>')
+                    
         rows.append('<tr><td style="font-weight: bold;">Copyright</td><td>Haiphongtech.vn</td></tr>')
         rows.append('</tbody></table>')
         return '\n'.join(rows)
 
-    def extract_product_details(self, product_url: str, category_name: str, expected_brand: str = None) -> dict | None:
-        """STRICT extraction - Lấy chi tiết sản phẩm với validation nghiêm ngặt theo brand."""
+    def _download_image_webp(self, img_url: str, output_path: str) -> bool:
+        """Download image and save exactly as .webp"""
         try:
-            logger.debug(f"🔍 Extracting product details from: {product_url}")
+            if not img_url:
+                return False
+            if os.path.exists(output_path) and os.path.getsize(output_path) > 0:
+                return True
+            resp = self.session.get(img_url, timeout=20)
+            resp.raise_for_status()
+            
+            from PIL import Image
+            import io
+            image = Image.open(io.BytesIO(resp.content))
+            # Convert to RGB if necessary before saving as WebP
+            if image.mode in ("RGBA", "P"):
+                image = image.convert("RGB")
+            image.save(output_path, 'WEBP')
+            return True
+        except Exception as e:
+            logger.error(f"âŒ Error downloading image {img_url}: {e}")
+            return False
+
+    def extract_product_details(self, product_url: str, category_name: str, expected_brand: str = None) -> dict | None:
+        """STRICT extraction - Láº¥y chi tiáº¿t sáº£n pháº©m vá»›i validation nghiÃªm ngáº·t theo brand."""
+        try:
+            logger.debug(f"ðŸ” Extracting product details from: {product_url}")
             if expected_brand:
-                logger.info(f"🎯 Expected brand: {expected_brand}")
+                logger.info(f"ðŸŽ¯ Expected brand: {expected_brand}")
                 
             resp = self.session.get(product_url, timeout=30)
             resp.raise_for_status()
             soup = BeautifulSoup(resp.text, 'html.parser')
 
-            # Tên sản phẩm: <h1 class="content-title">
+            # TÃªn sáº£n pháº©m: <h1 class="content-title">
             name_el = soup.select_one('h1.content-title')
             product_name = name_el.get_text(strip=True) if name_el else ''
-            logger.debug(f"📝 Product name: {product_name}")
+            logger.debug(f"ðŸ“ Product name: {product_name}")
 
-            # Mã sản phẩm: <p class="content-meta__sku">Mã sản phẩm: E2B-M12KN05-WP-B2 2M OMI</p>
+            # MÃ£ sáº£n pháº©m: <p class="content-meta__sku">MÃ£ sáº£n pháº©m: E2B-M12KN05-WP-B2 2M OMI</p>
             sku_el = soup.select_one('p.content-meta__sku')
             sku_text = sku_el.get_text(strip=True) if sku_el else ''
-            # Lấy phần sau "Mã sản phẩm:" 
-            product_code = re.sub(r'^\s*Mã\s*sản\s*phẩm\s*:\s*', '', sku_text, flags=re.IGNORECASE).strip()
-            logger.debug(f"🏷️ Product code: {product_code}")
+            # Láº¥y pháº§n sau "MÃ£ sáº£n pháº©m:" 
+            product_code = ""
+            if sku_text:
+                import re
+                product_code = re.sub(r"(?i)^\s*mã\s*sản\s*phẩm\s*:\s*", "", sku_text).strip()
+                # Fix encoding artifact
+                if "M" in product_code and "s" in product_code and "ph" in product_code:
+                    product_code = re.sub(r"(?i)^.*?:\s*", "", product_code).strip()
+            if not product_code and product_url:
+                import re
+                match = re.search(r"/products/([^/?]+)", product_url)
+                if match:
+                    product_code = match.group(1).upper()
 
-            # Hãng sản phẩm: <a class="content-meta__brand">
+            # GiÃ¡ sáº£n pháº©m: <div class="left"><p>45.540Ä‘</p>...</div>
+            product_price = ""
+            left_div = soup.select_one('div.left')
+            if left_div:
+                for p in left_div.find_all('p'):
+                    text = p.get_text(strip=True)
+                    if not text or 'VAT' in text.upper():
+                        continue
+                    if 'Ä‘' in text or 'â‚«' in text or any(char.isdigit() for char in text):
+                        product_price = text
+                        break
+            logger.debug(f"ðŸ’° Product price: {product_price}")
+
+            # HÃ£ng sáº£n pháº©m: <a class="content-meta__brand">
             brand_el = soup.select_one('a.content-meta__brand')
             actual_brand = brand_el.get_text(strip=True) if brand_el else ''
-            logger.info(f"🏭 Actual brand from product: {actual_brand}")
+            logger.info(f"ðŸ­ Actual brand from product: {actual_brand}")
 
             # STRICT BRAND VALIDATION
             if expected_brand:
                 if actual_brand.lower() != expected_brand.lower():
-                    logger.error(f"❌ BRAND MISMATCH! Expected: '{expected_brand}', Actual: '{actual_brand}' for product: {product_name}")
-                    logger.error(f"❌ REJECTING PRODUCT: {product_url}")
+                    logger.error(f"âŒ BRAND MISMATCH! Expected: '{expected_brand}', Actual: '{actual_brand}' for product: {product_name}")
+                    logger.error(f"âŒ REJECTING PRODUCT: {product_url}")
                     return None  # REJECT this product
                 else:
-                    logger.info(f"✅ BRAND MATCH VERIFIED: {actual_brand}")
+                    logger.info(f"âœ… BRAND MATCH VERIFIED: {actual_brand}")
 
-            # Thông số kỹ thuật: <div class="content-tab__detail" id="technical">
+            # ThÃ´ng sá»‘ ká»¹ thuáº­t: <div class="content-tab__detail" id="technical">
             tech_div = soup.select_one('div.content-tab__detail#technical')
             if not tech_div:
                 # Fallback selectors
                 tech_div = soup.select_one('div#technical') or soup.select_one('.content-tab__detail')
                 
-            logger.debug(f"🔧 Technical div found: {tech_div is not None}")
+            logger.debug(f"ðŸ”§ Technical div found: {tech_div is not None}")
 
-            # Extract specifications từ ul/li/span structure
+            # Extract specifications tá»« ul/li/span structure
             pairs = self._parse_specs_from_technical_div(tech_div) if tech_div else []
-            specs_html = self._build_specs_html(tech_div, pairs)
+            specs_html = self._build_specs_html(tech_div, pairs, product_code, product_name)
             
             if logger.isEnabledFor(logging.DEBUG):
-                logger.debug(f"📊 Specifications extracted: {len(pairs)} pairs")
+                logger.debug(f"ðŸ“Š Specifications extracted: {len(pairs)} pairs")
 
-            # Validation - đảm bảo có ít nhất tên sản phẩm
+            # áº¢nh sáº£n pháº©m
+            img_el = soup.select_one('#slider-product img') or soup.select_one('.content-top__image img') or soup.select_one('img[src*="hoplongtech.com/hoplong/"]') or soup.find('img')
+            img_url = img_el.get('src') if img_el else ''
+            if img_url and not img_url.startswith('http'):
+                img_url = urljoin(self.base_url, img_url)
+            logger.debug(f"ðŸ–¼ï¸ Product image: {img_url}")
+
+            # Validation - Ä‘áº£m báº£o cÃ³ Ã­t nháº¥t tÃªn sáº£n pháº©m
             if not product_name and not product_code:
-                logger.warning(f"❌ No product name or code found for {product_url}")
+                logger.warning(f"âŒ No product name or code found for {product_url}")
                 return None
 
             # Use actual brand from product page (đã được verified)
             data = {
                 'Tên sản phẩm': product_name,
                 'Mã sản phẩm': product_code,
-                'Hãng': actual_brand,  # Use verified brand from product
+                'Giá': product_price,
+                'Hãng': actual_brand,
                 'Danh mục': category_name,
                 'Link sản phẩm': product_url,
                 'Thông số kỹ thuật HTML': specs_html,
+                'Image URL': img_url
             }
             
-            logger.info(f"✅ Successfully extracted VERIFIED product: {product_name} (Brand: {actual_brand})")
+            logger.info(f"âœ… Successfully extracted VERIFIED product: {product_name} (Brand: {actual_brand})")
             return data
             
         except Exception as e:
-            logger.error(f"❌ Lỗi khi lấy chi tiết sản phẩm {product_url}: {e}")
+            logger.error(f"âŒ Lá»—i khi láº¥y chi tiáº¿t sáº£n pháº©m {product_url}: {e}")
             import traceback
             logger.debug(f"Traceback: {traceback.format_exc()}")
             self.stats["errors"] += 1
@@ -1506,18 +1682,18 @@ class HopLongCrawler:
 
     # ======= MAIN ORCHESTRATION =======
     def _category_name_from_html(self, driver) -> str:
-        """Lấy tên danh mục từ HTML thực tế thay vì URL"""
+        """Láº¥y tÃªn danh má»¥c tá»« HTML thá»±c táº¿ thay vÃ¬ URL"""
         try:
-            # Lấy từ <h1 class="title"> trong .list-heading__left
+            # Láº¥y tá»« <h1 class="title"> trong .list-heading__left
             title_element = driver.find_element(By.CSS_SELECTOR, '.list-heading__left h1.title')
             category_name = title_element.text.strip()
             if category_name:
-                logger.info(f"📂 Category name from HTML: {category_name}")
+                logger.info(f"ðŸ“‚ Category name from HTML: {category_name}")
                 return category_name
         except Exception as e:
             logger.debug(f"Cannot get category from HTML: {e}")
         
-        # Fallback: từ page title
+        # Fallback: tá»« page title
         try:
             page_title = driver.title
             if page_title:
@@ -1528,48 +1704,176 @@ class HopLongCrawler:
                     category_name = page_title.split('-')[0].strip()
                 else:
                     category_name = page_title.strip()
-                logger.info(f"📂 Category name from title: {category_name}")
+                logger.info(f"ðŸ“‚ Category name from title: {category_name}")
                 return category_name
         except Exception:
             pass
         
-        # Last fallback: từ URL
+        # Last fallback: tá»« URL
         try:
             current_url = driver.current_url
             path = urlparse(current_url).path.strip('/')
             last = path.split('/')[-1]
             category_name = last.replace('-', ' ').title()
-            logger.info(f"📂 Category name from URL: {category_name}")
+            logger.info(f"ðŸ“‚ Category name from URL: {category_name}")
             return category_name
         except Exception:
             logger.warning("Cannot extract category name, using default")
-            return 'Danh mục'
+            return 'Danh má»¥c'
+
+    def crawl_multiple_categories(self, category_urls: list[str], max_pages: int = 200) -> str:
+        """Tối ưu hóa: cào nhiều danh mục đồng thời, khử trùng lặp tức thời và dừng khi hết trang thực tế."""
+        start = time.time()
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        batch_folder = os.path.join(self.output_root, f"HopLong_Multi_{timestamp}")
+        os.makedirs(batch_folder, exist_ok=True)
+        
+        logger.info(f"=== BẮT ĐẦU CÀO {len(category_urls)} DANH MỤC HOPLONG (SIÊU TỐC ĐỘ, MAX PAGES: {max_pages if max_pages > 0 else 'ALL'}) ===")
+        
+        all_product_links = []
+        links_lock = threading.Lock()
+        shared_seen_links = set()
+        seen_lock = threading.Lock()
+        
+        self.emit_progress(5, f"Đang quét {len(category_urls)} danh mục với bộ lọc khử trùng lặp...")
+        
+        def process_cat(url):
+            try:
+                cat_links = self._fetch_all_pages_bs4(
+                    url, max_pages=max_pages, shared_seen_links=shared_seen_links, seen_lock=seen_lock
+                )
+                with links_lock:
+                    for l in cat_links:
+                        if l not in all_product_links:
+                            all_product_links.append(l)
+                return cat_links
+            except Exception as e:
+                logger.error(f"Lỗi khi quét danh mục {url}: {e}")
+                return []
+
+        # Quét các danh mục song song (tối đa 6 danh mục cùng lúc)
+        with concurrent.futures.ThreadPoolExecutor(max_workers=min(len(category_urls), 6)) as executor:
+            list(executor.map(process_cat, category_urls))
+                            
+        # Khử trùng danh sách link lần cuối
+        all_product_links = list(dict.fromkeys(all_product_links))
+        logger.info(f"Đã tìm thấy tổng cộng {len(all_product_links)} link sản phẩm duy nhất.")
+        self.emit_progress(20, f"Tìm thấy {len(all_product_links)} sản phẩm duy nhất (đã lọc trùng). Bắt đầu cào chi tiết...")
+        
+        results_by_brand = {}
+        processed_count = 0
+        seen_skus = set()
+        sku_lock = threading.Lock()
+        
+        def process_product(url):
+            try:
+                return self.extract_product_details(url, "HopLong_Category")
+            except Exception as e:
+                logger.error(f"Error extracting product {url}: {e}")
+                return None
+
+        optimal_workers = min(self.max_workers * 4, 60)
+        
+        with concurrent.futures.ThreadPoolExecutor(max_workers=optimal_workers) as executor:
+            futures = {executor.submit(process_product, url): url for url in all_product_links}
+            for fut in concurrent.futures.as_completed(futures):
+                item = fut.result()
+                processed_count += 1
+                if item:
+                    # Khử trùng theo SKU (Mã sản phẩm)
+                    sku = item.get('Mã sản phẩm') or item.get('MÃ£ sáº£n pháº©m') or ''
+                    if sku:
+                        with sku_lock:
+                            if sku in seen_skus:
+                                logger.debug(f"Trùng SKU {sku}, bỏ qua không thêm trùng lặp")
+                                continue
+                            seen_skus.add(sku)
+
+                    brand = (item.get('Hãng') or item.get('HÃ£ng') or 'Khac').strip()
+                    if not brand:
+                        brand = 'Khac'
+                    brand_safe = re.sub(r'[\\/*?:"<>|]', "", brand).strip()
+                    if not brand_safe:
+                        brand_safe = 'Khac'
+                        
+                    if brand_safe not in results_by_brand:
+                        results_by_brand[brand_safe] = []
+                    
+                    img_url = item.pop('Image URL', '')
+                    item['Ảnh sản phẩm'] = img_url
+                    
+                    brand_folder = os.path.join(batch_folder, brand_safe)
+                    os.makedirs(brand_folder, exist_ok=True)
+                    images_dir = os.path.join(brand_folder, 'images')
+                    os.makedirs(images_dir, exist_ok=True)
+                    
+                    if img_url:
+                        product_code = sku or f"product_{len(results_by_brand[brand_safe])}"
+                        product_code = re.sub(r'[\\/*?:"<>|]', "_", product_code)
+                        img_path = os.path.join(images_dir, f"{product_code}.webp")
+                        self._download_image_webp(img_url, img_path)
+                    
+                    results_by_brand[brand_safe].append(item)
+                    
+                if processed_count % 5 == 0 or processed_count == len(all_product_links):
+                    self.emit_progress(
+                        20 + (processed_count / max(1, len(all_product_links))) * 70,
+                        f"Đã xử lý {processed_count}/{len(all_product_links)} sản phẩm"
+                    )
+
+        # Lưu Excel theo từng hãng
+        self.emit_progress(95, "Đang xuất file Excel theo từng hãng...")
+        for brand, items in results_by_brand.items():
+            if items:
+                brand_folder = os.path.join(batch_folder, brand)
+                excel_path = os.path.join(brand_folder, f"{brand}.xlsx")
+                self._export_excel(items, excel_path)
+                
+        dur = time.time() - start
+        logger.info(f"=== HOÀN THÀNH CÀO NHIỀU DANH MỤC ===")
+        logger.info(f"Thời gian: {dur:.1f}s, Sản phẩm: {processed_count}")
+        
+        total_images = sum(
+            len([x for x in os.listdir(os.path.join(batch_folder, b, 'images')) if x.lower().endswith('.webp')])
+            for b in results_by_brand if os.path.exists(os.path.join(batch_folder, b, 'images'))
+        )
+        self.stats = {
+            'products_ok': sum(len(items) for items in results_by_brand.values()),
+            'images_ok': total_images,
+            'categories': len(results_by_brand),
+            'brands': len(results_by_brand),
+            'products_found': len(all_product_links),
+        }
+        self.emit_progress(100, "Hoàn thành cào dữ liệu", f"{dur:.1f}s - {self.stats['products_ok']} sản phẩm | {total_images} ảnh")
+        
+        return batch_folder
 
     def crawl_category_by_brands(self, category_url: str, brands: list[str]) -> str:
-        """OPTIMIZED: Cào 1 danh mục cho nhiều hãng với parallel processing."""
+        """OPTIMIZED: CÃ o 1 danh má»¥c cho nhiá»u hÃ£ng vá»›i parallel processing."""
         start = time.time()
         timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
         batch_folder = os.path.join(self.output_root, f"HopLong_{timestamp}")
         os.makedirs(batch_folder, exist_ok=True)
 
-        # Sẽ lấy category name sau khi driver đã load trang
+        # Sáº½ láº¥y category name sau khi driver Ä‘Ã£ load trang
         category_name = "HopLong_Products"  # Temporary name
         category_dir = os.path.join(batch_folder, category_name)
         os.makedirs(category_dir, exist_ok=True)
 
         logger.info(f"=== OPTIMIZED CRAWL HopLong category: {category_name} ===")
         logger.info(f"URL: {category_url}")
-        logger.info(f"Số lượng brands: {len(brands)}")
+        logger.info(f"Sá»‘ lÆ°á»£ng brands: {len(brands)}")
         logger.info(f"Output folder: {batch_folder}")
         
-        self.emit_progress(0, f"Bắt đầu cào HopLong: {category_name}", category_url)
+        self.emit_progress(0, f"Báº¯t Ä‘áº§u cÃ o HopLong: {category_name}", category_url)
 
-        # OPTIMIZATION DECISION: Choose parallel vs sequential based on brand count
-        if len(brands) >= 2 and len(brands) <= 4:
-            logger.info(f"🚀 PARALLEL MODE: Processing {len(brands)} brands concurrently")
+        # OPTIMIZATION DECISION: LuÃ´n dÃ¹ng parallel mode khi cÃ³ >= 2 brands.
+        # Vá»›i danh má»¥c lá»›n nhÆ° nut-nhan (nhiá»u brands), parallel mode nhanh hÆ¡n nhiá»u.
+        if len(brands) >= 2:
+            logger.info(f"ðŸš€ PARALLEL MODE: Processing {len(brands)} brands concurrently")
             return self._crawl_brands_parallel_mode(category_url, brands, batch_folder, category_name, category_dir, start)
         else:
-            logger.info(f"🔄 SEQUENTIAL MODE: {len(brands)} brands (parallel not optimal)")
+            logger.info(f"ðŸ”„ SEQUENTIAL MODE: {len(brands)} brand (chá»‰ 1 brand)")
             return self._crawl_brands_sequential_mode(category_url, brands, batch_folder, category_name, category_dir, start)
 
     def _crawl_brands_parallel_mode(self, category_url: str, brands: list[str], batch_folder: str, category_name: str, category_dir: str, start_time: float) -> str:
@@ -1591,14 +1895,14 @@ class HopLongCrawler:
                 return None
                 
             thread_id = threading.current_thread().name
-            logger.info(f"[{thread_id}] 🔄 Processing brand {idx+1}/{len(brands)}: {brand_display}")
+            logger.info(f"[{thread_id}] ðŸ”„ Processing brand {idx+1}/{len(brands)}: {brand_display}")
             
             try:
                 # Update progress
                 with shared_data["results_lock"]:
                     self.emit_progress(
                         5 + idx * (80/max(1, len(brands))), 
-                        f"[Parallel] Đang xử lý: {brand_display}",
+                        f"[Parallel] Äang xá»­ lÃ½: {brand_display}",
                         f"Thread: {thread_id[-8:]}"
                     )
                 
@@ -1617,19 +1921,21 @@ class HopLongCrawler:
                     with shared_data["results_lock"]:
                         self.stats['brands_processed'] += 1
                         
-                    logger.info(f"[{thread_id}] ✅ Completed {brand_display}: {len(results)} products")
+                    logger.info(f"[{thread_id}] âœ… Completed {brand_display}: {len(results)} products")
                 
                 return {"brand": brand_display, "products": len(results), "success": True}
                 
             except Exception as e:
-                logger.error(f"[{thread_id}] ❌ Error processing {brand_display}: {e}")
+                logger.error(f"[{thread_id}] âŒ Error processing {brand_display}: {e}")
                 with shared_data["results_lock"]:
                     self.stats['errors'] += 1
                 return {"brand": brand_display, "products": 0, "success": False, "error": str(e)}
         
         # PARALLEL EXECUTION
-        max_parallel_brands = min(len(brands), 3)  # Max 3 concurrent brand processing
-        logger.info(f"🔧 Using {max_parallel_brands} parallel brand workers")
+        # Vá»›i nhiá»u brands (nut-nhan cÃ³ thá»ƒ > 50 brands): tÄƒng workers lÃªn nhÆ°ng khÃ´ng quÃ¡ 8
+        # Ä‘á»ƒ trÃ¡nh bá»‹ rate-limit. Má»—i brand worker sáº½ tá»± xá»­ lÃ½ toÃ n bá»™ pages + products cá»§a brand Ä‘Ã³.
+        max_parallel_brands = min(len(brands), 20)  # Tá»‘i Ä‘a 20 brand workers song song
+        logger.info(f"ðŸ”§ Using {max_parallel_brands} parallel brand workers (total {len(brands)} brands)")
         
         brand_data = [(idx, brand) for idx, brand in enumerate(brands)]
         brand_results = []
@@ -1644,7 +1950,7 @@ class HopLongCrawler:
                     if result:
                         brand_results.append(result)
                 except Exception as e:
-                    logger.error(f"❌ Future exception for brand {brand_data_item}: {e}")
+                    logger.error(f"âŒ Future exception for brand {brand_data_item}: {e}")
         
         # COMPLETION SUMMARY
         successful_brands = sum(1 for r in brand_results if r.get("success"))
@@ -1659,7 +1965,7 @@ class HopLongCrawler:
         logger.info(f"Brands: {successful_brands}/{len(brands)} successful")
         logger.info(f"Products: {total_products} total")
         
-        self.emit_progress(100, f"Parallel crawl hoàn thành: {shared_data['category_name']}", f"{duration:.1f}s - {total_products} sản phẩm")
+        self.emit_progress(100, f"Parallel crawl hoÃ n thÃ nh: {shared_data['category_name']}", f"{duration:.1f}s - {total_products} sáº£n pháº©m")
         return batch_folder
 
     def _get_brand_links_threadsafe(self, category_url: str, brand_display: str, idx: int, shared_data: dict) -> list[str]:
@@ -1677,7 +1983,7 @@ class HopLongCrawler:
                     with shared_data["results_lock"]:
                         try:
                             real_category_name = self._category_name_from_html(driver)
-                            if real_category_name and real_category_name != "Danh mục":
+                            if real_category_name and real_category_name != "Danh má»¥c":
                                 old_category_dir = shared_data["category_dir"]
                                 shared_data["category_name"] = real_category_name.replace('/', '-').replace('\\', '-')
                                 shared_data["category_dir"] = os.path.join(os.path.dirname(old_category_dir), shared_data["category_name"])
@@ -1690,30 +1996,30 @@ class HopLongCrawler:
                                 else:
                                     os.makedirs(shared_data["category_dir"], exist_ok=True)
                                     
-                                logger.info(f"📂 Updated category name: {shared_data['category_name']}")
+                                logger.info(f"ðŸ“‚ Updated category name: {shared_data['category_name']}")
                         except Exception as e:
                             logger.debug(f"Cannot update category name: {e}")
 
                 # Apply brand filter
                 filter_success = self._apply_brand_filter(driver, brand_display)
                 if not filter_success:
-                    logger.error(f"❌ Brand filter failed for '{brand_display}'")
+                    logger.error(f"âŒ Brand filter failed for '{brand_display}'")
                     return []
                 
-                # HYBRID APPROACH: Get filtered URL từ Selenium, sau đó dùng BeautifulSoup
+                # HYBRID APPROACH: Get filtered URL tá»« Selenium, sau Ä‘Ã³ dÃ¹ng BeautifulSoup
                 filtered_url = driver.current_url
-                logger.info(f"🔗 Filtered URL obtained: {filtered_url}")
+                logger.info(f"ðŸ”— Filtered URL obtained: {filtered_url}")
                 
-                # Đóng driver sớm để tiết kiệm resource
+                # ÄÃ³ng driver sá»›m Ä‘á»ƒ tiáº¿t kiá»‡m resource
                 self.close_driver(driver)
                 driver = None  # Mark as closed
                 
-                # Chuyển sang BeautifulSoup để thu thập product links với pagination
-                logger.info(f"🔄 Switching to BeautifulSoup for multi-page collection: {brand_display}")
+                # Chuyá»ƒn sang BeautifulSoup Ä‘á»ƒ thu tháº­p product links vá»›i pagination
+                logger.info(f"ðŸ”„ Switching to BeautifulSoup for multi-page collection: {brand_display}")
                 
-                # Sử dụng requests session để fetch tất cả pages
+                # Sá»­ dá»¥ng requests session Ä‘á»ƒ fetch táº¥t cáº£ pages
                 product_links = self._fetch_all_pages_bs4(filtered_url, self.session)
-                logger.info(f"📦 HYBRID: Found {len(product_links)} products for {brand_display}")
+                logger.info(f"ðŸ“¦ HYBRID: Found {len(product_links)} products for {brand_display}")
                 
                 with shared_data["results_lock"]:
                     self.stats['products_found'] += len(product_links)
@@ -1721,7 +2027,7 @@ class HopLongCrawler:
                 return product_links
                 
             except Exception as e:
-                logger.error(f"❌ Error getting links for {brand_display}: {e}")
+                logger.error(f"âŒ Error getting links for {brand_display}: {e}")
                 with shared_data["results_lock"]:
                     self.stats['errors'] += 1
                 return []
@@ -1732,7 +2038,7 @@ class HopLongCrawler:
         try:
             return self.retry_with_backoff(_crawl_brand, max_retries=2, base_delay=2.0)
         except Exception as e:
-            logger.error(f"❌ Failed to get links for {brand_display}: {e}")
+            logger.error(f"âŒ Failed to get links for {brand_display}: {e}")
             return []
 
     def _process_brand_products_threadsafe(self, product_links: list[str], brand_display: str, idx: int, shared_data: dict) -> list[dict]:
@@ -1747,12 +2053,12 @@ class HopLongCrawler:
 
         # OPTIMIZED: Dynamic worker calculation for thread safety
         optimal_workers = min(
-            self.max_workers // 2,  # Reduce workers when in parallel brand mode
+            self.max_workers,  # Update to more workers per brand
             len(product_links) // 2 + 1,
-            12  # Max 12 workers per brand in parallel mode
+            25  # Max 25 workers per brand in parallel mode
         )
         
-        logger.info(f"🔧 Using {optimal_workers} workers for {len(product_links)} products ({brand_display})")
+        logger.info(f"ðŸ”§ Using {optimal_workers} workers for {len(product_links)} products ({brand_display})")
 
         with concurrent.futures.ThreadPoolExecutor(max_workers=optimal_workers) as executor:
             futures = {executor.submit(task, url): url for url in product_links}
@@ -1775,47 +2081,47 @@ class HopLongCrawler:
                             self.emit_progress(
                                 20 + idx * (60/4),  # Approximate progress for parallel mode
                                 f"[{brand_display}] {completed_count}/{len(product_links)}",
-                                f"{len(results)} thành công"
+                                f"{len(results)} thÃ nh cÃ´ng"
                             )
                 except Exception as e:
-                    logger.error(f"❌ Error processing {url}: {e}")
+                    logger.error(f"âŒ Error processing {url}: {e}")
                     completed_count += 1
                     
         return results
 
     def _crawl_brands_sequential_mode(self, category_url: str, brands: list[str], batch_folder: str, category_name: str, category_dir: str, start_time: float) -> str:
         """OPTIMIZED: Sequential processing with enhanced performance."""
-        # vòng theo từng brand với enhanced performance
+        # vÃ²ng theo tá»«ng brand vá»›i enhanced performance
         for idx, brand in enumerate(brands):
             brand_display = brand.strip()
             if not brand_display:
                 continue
 
-            self.emit_progress(5 + idx * (80/max(1, len(brands))), f"Đang áp dụng bộ lọc hãng: {brand_display}")
+            self.emit_progress(5 + idx * (80/max(1, len(brands))), f"Äang Ã¡p dá»¥ng bá»™ lá»c hÃ£ng: {brand_display}")
 
-            # Mỗi brand mở một driver mới để trạng thái filter sạch
-            logger.info(f"--- Bắt đầu crawl brand: {brand_display} ---")
+            # Má»—i brand má»Ÿ má»™t driver má»›i Ä‘á»ƒ tráº¡ng thÃ¡i filter sáº¡ch
+            logger.info(f"--- Báº¯t Ä‘áº§u crawl brand: {brand_display} ---")
             
             def _crawl_brand():
                 driver = self.get_driver()
                 product_links: list[str] = []
                 try:
                     driver.get(category_url)
-                    WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.TAG_NAME, 'body')))  # Giảm từ 30 xuống 20
-                    time.sleep(1.0)  # Giảm từ 1.5s xuống 1.0s
+                    WebDriverWait(driver, 20).until(EC.presence_of_element_located((By.TAG_NAME, 'body')))  # Giáº£m tá»« 30 xuá»‘ng 20
+                    time.sleep(1.0)  # Giáº£m tá»« 1.5s xuá»‘ng 1.0s
 
-                    # Lấy category name từ HTML thực tế (chỉ lần đầu)
-                    if idx == 0:  # Chỉ lấy category name từ brand đầu tiên
+                    # Láº¥y category name tá»« HTML thá»±c táº¿ (chá»‰ láº§n Ä‘áº§u)
+                    if idx == 0:  # Chá»‰ láº¥y category name tá»« brand Ä‘áº§u tiÃªn
                         nonlocal category_name, category_dir
                         try:
                             real_category_name = self._category_name_from_html(driver)
-                            if real_category_name and real_category_name != "Danh mục":
-                                # Update folder structure với tên thật
+                            if real_category_name and real_category_name != "Danh má»¥c":
+                                # Update folder structure vá»›i tÃªn tháº­t
                                 old_category_dir = category_dir
                                 category_name = real_category_name.replace('/', '-').replace('\\', '-')  # Safe filename
                                 category_dir = os.path.join(batch_folder, category_name)
                                 
-                                # Rename directory nếu cần
+                                # Rename directory náº¿u cáº§n
                                 if old_category_dir != category_dir and os.path.exists(old_category_dir):
                                     try:
                                         os.rename(old_category_dir, category_dir)
@@ -1824,56 +2130,56 @@ class HopLongCrawler:
                                 else:
                                     os.makedirs(category_dir, exist_ok=True)
                                     
-                                logger.info(f"📂 Updated category name: {category_name}")
+                                logger.info(f"ðŸ“‚ Updated category name: {category_name}")
                         except Exception as e:
                             logger.debug(f"Cannot update category name: {e}")
 
                     # STRICT brand filter application
                     filter_success = self._apply_brand_filter(driver, brand_display)
                     if not filter_success:
-                        logger.error(f"❌ CRITICAL: Cannot apply brand filter for '{brand_display}' - SKIPPING this brand!")
+                        logger.error(f"âŒ CRITICAL: Cannot apply brand filter for '{brand_display}' - SKIPPING this brand!")
                         self.emit_progress(
                             5 + idx * (80/max(1, len(brands))), 
-                            f"❌ Brand filter failed: {brand_display}", 
+                            f"âŒ Brand filter failed: {brand_display}", 
                             "Skipping this brand - filter not working"
                         )
                         return []  # Return empty list - don't process this brand
                     
-                    # HYBRID APPROACH: Get filtered URL từ Selenium, sau đó dùng BeautifulSoup
+                    # HYBRID APPROACH: Get filtered URL tá»« Selenium, sau Ä‘Ã³ dÃ¹ng BeautifulSoup
                     try:
                         filtered_url = driver.current_url
-                        logger.info(f"🔗 Filtered URL obtained: {filtered_url}")
+                        logger.info(f"ðŸ”— Filtered URL obtained: {filtered_url}")
                     except:
                         filtered_url = category_url  # Fallback to original URL
-                        logger.warning("⚠️ Cannot get filtered URL, using original category URL")
+                        logger.warning("âš ï¸ Cannot get filtered URL, using original category URL")
 
-                    # Đóng driver sớm để tiết kiệm resource
+                    # ÄÃ³ng driver sá»›m Ä‘á»ƒ tiáº¿t kiá»‡m resource
                     self.close_driver(driver) 
                     driver = None  # Mark as closed
                     
-                    # Chuyển sang BeautifulSoup để thu thập product links với pagination
-                    logger.info(f"🔄 SEQUENTIAL: Switching to BeautifulSoup for multi-page collection: {brand_display}")
+                    # Chuyá»ƒn sang BeautifulSoup Ä‘á»ƒ thu tháº­p product links vá»›i pagination
+                    logger.info(f"ðŸ”„ SEQUENTIAL: Switching to BeautifulSoup for multi-page collection: {brand_display}")
                     
-                    # Sử dụng requests session để fetch tất cả pages
+                    # Sá»­ dá»¥ng requests session Ä‘á»ƒ fetch táº¥t cáº£ pages
                     product_links = self._fetch_all_pages_bs4(filtered_url, self.session)
-                    logger.info(f"📦 SEQUENTIAL HYBRID: Found {len(product_links)} products for {brand_display}")
+                    logger.info(f"ðŸ“¦ SEQUENTIAL HYBRID: Found {len(product_links)} products for {brand_display}")
                     
                     # Additional verification - make sure we have filtered results
                     if not product_links:
-                        logger.warning(f"⚠️ No products found for brand '{brand_display}' - this may be correct or filter issue")
+                        logger.warning(f"âš ï¸ No products found for brand '{brand_display}' - this may be correct or filter issue")
                     
                     return product_links
                 except WebDriverException as e:
                     if "ERR_CONNECTION_RESET" in str(e) or "net::" in str(e):
-                        logger.error(f"Lỗi kết nối mạng cho brand {brand_display}: {e}")
+                        logger.error(f"Lá»—i káº¿t ná»‘i máº¡ng cho brand {brand_display}: {e}")
                         self.emit_progress(
                             5 + idx * (80/max(1, len(brands))), 
-                            f"Lỗi kết nối cho {brand_display}", 
-                            "Thử phương pháp backup..."
+                            f"Lá»—i káº¿t ná»‘i cho {brand_display}", 
+                            "Thá»­ phÆ°Æ¡ng phÃ¡p backup..."
                         )
                         raise
                     else:
-                        logger.error(f"Lỗi WebDriver cho brand {brand_display}: {e}")
+                        logger.error(f"Lá»—i WebDriver cho brand {brand_display}: {e}")
                         raise
                 finally:
                     if driver is not None:
@@ -1883,19 +2189,19 @@ class HopLongCrawler:
                 product_links = self.retry_with_backoff(_crawl_brand, max_retries=2, base_delay=3.0)
                 self.stats['products_found'] += len(product_links)
             except Exception as e:
-                logger.error(f"Thất bại hoàn toàn khi crawl brand {brand_display}: {e}")
+                logger.error(f"Tháº¥t báº¡i hoÃ n toÃ n khi crawl brand {brand_display}: {e}")
                 self.stats['errors'] += 1
                 self.emit_progress(
                     5 + idx * (80/max(1, len(brands))), 
-                    f"Bỏ qua brand {brand_display}", 
-                    f"Lỗi: {str(e)[:100]}..."
+                    f"Bá» qua brand {brand_display}", 
+                    f"Lá»—i: {str(e)[:100]}..."
                 )
                 continue
 
-            # OPTIMIZED: Enhanced multithreading với adaptive workers
+            # OPTIMIZED: Enhanced multithreading vá»›i adaptive workers
             results: list[dict] = []
             if product_links:
-                self.emit_progress(20 + idx * (60/max(1, len(brands))), f"Đang lấy chi tiết {len(product_links)} sản phẩm", brand_display)
+                self.emit_progress(20 + idx * (60/max(1, len(brands))), f"Äang láº¥y chi tiáº¿t {len(product_links)} sáº£n pháº©m", brand_display)
 
                 def task(url: str):
                     # Pass expected brand to extraction for validation
@@ -1908,7 +2214,7 @@ class HopLongCrawler:
                     20  # Max 20 workers to avoid overwhelming server
                 )
                 
-                logger.info(f"🔧 Using {optimal_workers} workers for {len(product_links)} products")
+                logger.info(f"ðŸ”§ Using {optimal_workers} workers for {len(product_links)} products")
 
                 with concurrent.futures.ThreadPoolExecutor(max_workers=optimal_workers) as executor:
                     # OPTIMIZED: Submit all tasks at once for better scheduling
@@ -1931,14 +2237,14 @@ class HopLongCrawler:
                                 progress_pct = 20 + idx * (60/max(1, len(brands))) + (completed_count/max(1, len(product_links))) * (60/max(1, len(brands)))
                                 self.emit_progress(
                                     progress_pct, 
-                                    f"Đã xử lý {completed_count}/{len(product_links)} sản phẩm",
-                                    f"{brand_display} - {len(results)} thành công"
+                                    f"ÄÃ£ xá»­ lÃ½ {completed_count}/{len(product_links)} sáº£n pháº©m",
+                                    f"{brand_display} - {len(results)} thÃ nh cÃ´ng"
                                 )
                         except Exception as e:
-                            logger.error(f"❌ Error processing {url}: {e}")
+                            logger.error(f"âŒ Error processing {url}: {e}")
                             completed_count += 1
 
-            # xuất excel cho brand này
+            # xuáº¥t excel cho brand nÃ y
             if results:
                 excel_name = f"{category_name} {brand_display}.xlsx"
                 excel_path = os.path.join(category_dir, excel_name)
@@ -1948,15 +2254,15 @@ class HopLongCrawler:
         self.stats['categories_processed'] += 1
         dur = time.time() - start_time
         
-        # Log kết quả tổng kết
-        logger.info(f"=== Hoàn thành crawl category: {category_name} ===")
-        logger.info(f"Thời gian: {dur:.1f}s")
+        # Log káº¿t quáº£ tá»•ng káº¿t
+        logger.info(f"=== HoÃ n thÃ nh crawl category: {category_name} ===")
+        logger.info(f"Thá»i gian: {dur:.1f}s")
         logger.info(f"Brands processed: {self.stats['brands_processed']}")
         logger.info(f"Products found: {self.stats['products_found']}")
         logger.info(f"Products processed: {self.stats['products_processed']}")
         logger.info(f"Errors: {self.stats['errors']}")
         
-        self.emit_progress(100, f"Hoàn thành danh mục: {category_name}", f"{dur:.1f}s - {self.stats['products_processed']} sản phẩm")
+        self.emit_progress(100, f"HoÃ n thÃ nh danh má»¥c: {category_name}", f"{dur:.1f}s - {self.stats['products_processed']} sáº£n pháº©m")
         return batch_folder
 
     def _export_excel(self, rows: list[dict], excel_path: str) -> None:
@@ -1976,3 +2282,609 @@ class HopLongCrawler:
                 ws.column_dimensions[col_letter].width = min(max_len + 2, 60)
 
 
+# ======================================================================
+# HopLongProductCrawler - Async HTTP crawler (aiohttp + queue + checkpoint)
+# ======================================================================
+
+class HopLongProductCrawler:
+    """
+    Async crawler Hop Long:
+      - aiohttp: HTTP bat dong bo, nhanh hon requests nhieu lan
+      - asyncio.Queue: pipeline producer-consumer
+      - asyncio.Semaphore: gioi han concurrent (pages / products / images)
+      - Checkpoint: luu tien do -> resume neu bi gian doan
+      - Tai anh song song co gioi han (img_concurrency)
+    """
+
+    HOPLONGTECH_DOMAIN = "hoplongtech.com"
+    BASE_URL = "https://hoplongtech.com"
+    BASE_HEADERS = {
+        "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36",
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8",
+        "Accept-Language": "vi-VN,vi;q=0.9,en-US;q=0.8,en;q=0.7",
+        "Connection": "keep-alive",
+        "Upgrade-Insecure-Requests": "1",
+    }
+
+    def __init__(
+        self,
+        output_root: str = None,
+        max_workers: int = 20,
+        socketio_instance=None,
+        page_concurrency: int = 30,
+        product_concurrency: int = 25,
+        img_concurrency: int = 15,
+    ):
+        self.output_root = output_root or os.path.join(os.getcwd(), "output_hoplong")
+        self.max_workers = max_workers
+        self.page_concurrency = page_concurrency
+        self.product_concurrency = product_concurrency
+        self.img_concurrency = img_concurrency
+        self.socketio = socketio_instance
+        self.stats = {
+            "categories": 0, "products_found": 0,
+            "products_ok": 0, "products_failed": 0,
+            "images_ok": 0, "images_failed": 0,
+        }
+        self._failed_img_urls: set = set()
+
+    # ------------------------------------------------------------------
+    # Emit & helpers
+    # ------------------------------------------------------------------
+    def _emit(self, percent: float, message: str, detail: str = "") -> None:
+        if self.socketio:
+            try:
+                self.socketio.emit("progress_update", {
+                    "percent": round(percent, 1),
+                    "message": message,
+                    "detail": str(detail),
+                })
+            except Exception:
+                pass
+        logger.info(f"[{percent:.1f}%] {message} {detail}")
+
+    @staticmethod
+    def _safe_folder(name: str) -> str:
+        name = (name or "Khac").strip()
+        name = re.sub(r'[\\/:*?"<>|]', "_", name)
+        name = re.sub(r"\s+", "_", name)
+        return name.strip("_") or "Khac"
+
+    def _make_page_url(self, base_url: str, page: int) -> str:
+        if page <= 1:
+            return base_url
+        clean = re.sub(r'[&?]page=\d+', '', base_url).rstrip('?&')
+        sep = '&' if '?' in clean else '?'
+        return f"{clean}{sep}page={page}"
+
+    # ------------------------------------------------------------------
+    # Checkpoint
+    # ------------------------------------------------------------------
+    def _load_checkpoint(self, path: str) -> set:
+        if path and os.path.exists(path):
+            try:
+                with open(path, 'r', encoding='utf-8') as f:
+                    return set(json.load(f))
+            except Exception:
+                pass
+        return set()
+
+    def _save_checkpoint(self, path: str, done: set) -> None:
+        if path:
+            try:
+                with open(path, 'w', encoding='utf-8') as f:
+                    json.dump(sorted(done), f)
+            except Exception:
+                pass
+
+    # ------------------------------------------------------------------
+    # Async HTTP helpers
+    # ------------------------------------------------------------------
+    async def _fetch(self, session, url: str, sem) -> str | None:
+        """Async fetch HTML voi semaphore + retry."""
+        async with sem:
+            for attempt in range(5):
+                try:
+                    async with session.get(url) as resp:
+                        if resp.status == 200:
+                            return await resp.text(encoding='utf-8', errors='replace')
+                        if resp.status == 429:
+                            await asyncio.sleep(5 + attempt * 2)
+                        elif attempt < 4:
+                            await asyncio.sleep(2.0)
+                except Exception as e:
+                    if attempt < 4:
+                        await asyncio.sleep(2.0)
+                    else:
+                        logger.debug(f"[fetch] {url}: {e}")
+        return None
+
+    async def _fetch_bytes(self, session, url: str, sem) -> bytes | None:
+        """Async fetch binary (anh) voi semaphore + retry."""
+        async with sem:
+            for attempt in range(3):
+                try:
+                    img_headers = {
+                        "User-Agent": self.BASE_HEADERS["User-Agent"],
+                        "Accept": "image/avif,image/webp,image/*,*/*;q=0.8",
+                        "Referer": self.BASE_URL + "/",
+                    }
+                    async with session.get(url, headers=img_headers) as resp:
+                        if resp.status == 200:
+                            return await resp.read()
+                        if attempt < 2:
+                            await asyncio.sleep(1.0)
+                except Exception as e:
+                    if attempt < 2:
+                        await asyncio.sleep(1.0)
+                    else:
+                        logger.debug(f"[img] {url}: {e}")
+        return None
+
+    # ------------------------------------------------------------------
+    # Link extraction
+    # ------------------------------------------------------------------
+    def _extract_links(self, html: str) -> set:
+        try:
+            soup = BeautifulSoup(html, 'lxml')
+        except Exception:
+            soup = BeautifulSoup(html, 'html.parser')
+        links = set()
+        for a in soup.select('a[href]'):
+            href = a.get('href', '').strip().split('?')[0]
+            if not href or href == '#' or href == '/':
+                continue
+            
+            # Dieu kien 1: link chua cac tu khoa san pham
+            is_product = ('/products/' in href or '/product/' in href or '/san-pham/' in href)
+            
+            # Dieu kien 2: link nam trong the hien thi san pham (ke ca khi URL la /p12345)
+            if not is_product:
+                parent = a.find_parent(class_=re.compile(r'product-item|box-product|item-product|product-list|product-box', re.I))
+                if parent:
+                    is_product = True
+                    
+            if is_product:
+                if href.startswith('/'):
+                    href = f"https://{self.HOPLONGTECH_DOMAIN}{href}"
+                elif href.startswith('http') and self.HOPLONGTECH_DOMAIN not in href:
+                    continue
+                links.add(href)
+        return links
+
+    def _parse_total_pages(self, html: str) -> int | None:
+        """
+        Da bo co che tinh so trang theo yeu cau de bat buoc quet dong tung trang 1 den khi het hang.
+        """
+        return None
+
+    # ------------------------------------------------------------------
+    # Async category link collector
+    # ------------------------------------------------------------------
+    async def _collect_links_async(self, session, category_url: str, page_sem) -> list:
+        """Thu thap tat ca /products/ links tu 1 category URL - async, quet tung trang 1 de loc san pham chinh xac."""
+        cat_name = category_url.rstrip('/').split('/')[-1]
+        all_links: set = set()
+
+        html1 = await self._fetch(session, category_url, page_sem)
+        if not html1:
+            logger.warning(f"[HopLong] Khong fetch duoc: {category_url}")
+            return []
+
+        links_page1 = self._extract_links(html1)
+        all_links |= links_page1
+        logger.info(f"[HopLong] {cat_name}: Bo qua tinh toan so trang, tien hanh quet tuan tu tung trang cho den khi khong con san pham...")
+
+        max_page = 1000
+        consecutive_empty = 0
+
+        # Quet tuan tu tung trang 1 thay vi batch de dam bao lay day du va khong bi loi
+        for p in range(2, max_page + 1):
+            page_url = self._make_page_url(category_url, p)
+            html = await self._fetch(session, page_url, page_sem)
+            
+            # Neu html rong, thu lai
+            if not html:
+                await asyncio.sleep(2.0)
+                html = await self._fetch(session, page_url, page_sem)
+
+            if not html:
+                logger.warning(f"[HopLong] Loi tai trang {p}: {page_url}")
+                consecutive_empty += 1
+                if consecutive_empty >= 3:
+                    break
+                continue
+
+            links = self._extract_links(html)
+            if links:
+                new_links = links - all_links
+                if not new_links:
+                    logger.debug(f"[HopLong] Trang {p} khong co san pham moi")
+                    consecutive_empty += 1
+                else:
+                    all_links |= new_links
+                    consecutive_empty = 0
+            else:
+                logger.debug(f"[HopLong] Trang {p} khong co san pham")
+                consecutive_empty += 1
+
+            if consecutive_empty >= 3:
+                logger.info(f"[HopLong] Dung quet tai trang {p} do 3 trang lien tiep khong co SP moi")
+                break
+                
+            await asyncio.sleep(0.3)
+
+        logger.info(f"[HopLong] {cat_name}: {len(all_links)} links duy nhat")
+        return sorted(all_links)
+
+    # ------------------------------------------------------------------
+    # Subcategory detection (sync)
+    # ------------------------------------------------------------------
+    def _get_subcategory_urls(self, category_url: str) -> list:
+        try:
+            resp = requests.get(category_url, headers=self.BASE_HEADERS, timeout=20)
+            if not resp.ok:
+                return []
+            soup = BeautifulSoup(resp.text, 'html.parser')
+            subcats = set()
+            cat_path = category_url.rstrip('/').split('/')[-1]
+            for a in soup.select('a[href*="/category/"]'):
+                href = a.get('href', '').strip()
+                if not href:
+                    continue
+                if href.startswith('/'):
+                    href = f"https://{self.HOPLONGTECH_DOMAIN}{href}"
+                href_path = href.rstrip('/').split('/')[-1]
+                if href_path != cat_path and href_path.startswith(cat_path):
+                    subcats.add(href.split('?')[0])
+            return sorted(subcats)
+        except Exception as e:
+            logger.debug(f"[subcats] {category_url}: {e}")
+            return []
+
+    # ------------------------------------------------------------------
+    # Async product scraper
+    # ------------------------------------------------------------------
+    async def _scrape_product(self, session, url: str, product_sem, img_sem, run_dir: str, prod_url_to_cat: dict) -> dict | None:
+        """Scrape 1 san pham + tai anh bat dong bo."""
+        html = await self._fetch(session, url, product_sem)
+        if not html:
+            return None
+        try:
+            soup = BeautifulSoup(html, 'lxml')
+        except Exception:
+            soup = BeautifulSoup(html, 'html.parser')
+
+        h1 = soup.select_one("h1.content-title")
+        name = h1.get_text(strip=True) if h1 else ""
+
+        sku_el = soup.select_one("p.content-meta__sku")
+        sku = ""
+        if sku_el:
+            sku = re.sub(r"(?i)^\s*mã\s*sản\s*phẩm\s*:\s*", "", sku_el.get_text(strip=True)).strip()
+        
+        if not sku:
+            match = re.search(r'/products/([^/?]+)', url)
+            if match:
+                sku = match.group(1).upper()
+
+        price = ""
+        for sel in ["div.left", "div.product-price", ".content-price"]:
+            el = soup.select_one(sel)
+            if el:
+                for p_tag in el.find_all("p"):
+                    txt = p_tag.get_text(strip=True)
+                    if txt and "VAT" not in txt and "Li\u00ean h\u1ec7" not in txt:
+                        price = txt
+                        break
+                if price:
+                    break
+
+        brand_el = soup.select_one("a.content-meta__brand")
+        brand = (brand_el.get("aria-label", "") or brand_el.get_text(strip=True)).strip() if brand_el else ""
+
+        specs_html = self._build_specs_table(soup, name, sku)
+
+        img_url = ""
+        for sel in ["div#slider-product img", "div.content-top__image img", "img[src*='hoplongtech']"]:
+            img_tag = soup.select_one(sel)
+            if img_tag and img_tag.get("src"):
+                src = img_tag["src"].strip()
+                if src and "default_image" not in src:
+                    img_url = src
+                    break
+
+        if not name and not sku:
+            return None
+
+        cat_folder = prod_url_to_cat.get(url, "Khac")
+        cat_dir = os.path.join(run_dir, cat_folder)
+        local_img = ""
+        if img_url and sku:
+            local_img = await self._download_image_async(session, img_url, sku, cat_dir, img_sem)
+
+        return {
+            "T\u00ean s\u1ea3n ph\u1ea9m": name,
+            "M\u00e3 s\u1ea3n ph\u1ea9m": sku,
+            "Gi\u00e1": price,
+            "H\u00e3ng": brand or "Khac",
+            "Th\u00f4ng s\u1ed1 k\u1ef9 thu\u1eadt": specs_html,
+            "URL \u1ea3nh": img_url,
+            "\u1ea2nh (local)": local_img,
+            "URL s\u1ea3n ph\u1ea9m": url,
+        }
+
+    # ------------------------------------------------------------------
+    # Async image downloader
+    # ------------------------------------------------------------------
+    async def _download_image_async(self, session, img_url: str, sku: str, cat_dir: str, img_sem) -> str:
+        """Tai anh bat dong bo + convert WebP, co gioi han concurrency."""
+        if img_url in self._failed_img_urls:
+            return ""
+        images_dir = os.path.join(cat_dir, "images")
+        os.makedirs(images_dir, exist_ok=True)
+        safe_sku = re.sub(r'[\\/:*?"<>|]', "_", sku)
+        out_path = os.path.join(images_dir, f"{safe_sku}.webp")
+        if os.path.exists(out_path) and os.path.getsize(out_path) > 0:
+            return out_path
+
+        content = await self._fetch_bytes(session, img_url, img_sem)
+        if not content:
+            self._failed_img_urls.add(img_url)
+            self.stats["images_failed"] += 1
+            return ""
+
+        try:
+            from PIL import Image
+            import io as _io
+            loop = asyncio.get_event_loop()
+
+            def _save():
+                img = Image.open(_io.BytesIO(content))
+                if img.mode not in ("RGB", "RGBA"):
+                    img = img.convert("RGB")
+                img.save(out_path, "WEBP", quality=90)
+                return out_path
+
+            result = await loop.run_in_executor(None, _save)
+            self.stats["images_ok"] += 1
+            return result
+        except Exception:
+            try:
+                with open(out_path, "wb") as f:
+                    f.write(content)
+                self.stats["images_ok"] += 1
+                return out_path
+            except Exception:
+                self._failed_img_urls.add(img_url)
+                self.stats["images_failed"] += 1
+                return ""
+
+    # ------------------------------------------------------------------
+    # Specs table builder
+    # ------------------------------------------------------------------
+    def _build_specs_table(self, soup, name: str, sku: str) -> str:
+        rows = []
+        technical_div = soup.select_one("div.content-tab__detail#technical")
+        if technical_div:
+            for li in technical_div.select("ul li"):
+                t_el = li.select_one("span.title")
+                c_el = li.select_one("span.content")
+                if t_el and c_el:
+                    t = t_el.get_text(strip=True)
+                    c = c_el.get_text(strip=True)
+                    if t and c:
+                        rows.append((t, c))
+                        
+        exclude_keys = {"mã sản phẩm", "tên sản phẩm", "copyright"}
+        tbody_rows = []
+        
+        # 1. Mã sản phẩm
+        if sku:
+            tbody_rows.append(f'<tr><td style="font-weight: bold;">Mã sản phẩm</td><td>{sku}</td></tr>')
+        # 2. Tên sản phẩm
+        if name:
+            tbody_rows.append(f'<tr><td style="font-weight: bold;">Tên sản phẩm</td><td>{name}</td></tr>')
+            
+        # 3. Other specifications
+        for t, c in rows:
+            if t.lower().strip() in exclude_keys:
+                continue
+            tbody_rows.append(f'<tr><td style="font-weight: bold;">{t}</td><td>{c}</td></tr>')
+            
+        # 4. Copyright
+        tbody_rows.append('<tr><td style="font-weight: bold;">Copyright</td><td>Haiphongtech.vn</td></tr>')
+        
+        tbody = "".join(tbody_rows)
+        return (
+            '<table id="specifications" border="1" cellpadding="8" cellspacing="0" '
+            'style="border-collapse: collapse; font-family: Arial; width: 100%;">'
+            '<thead><tr style="background-color: #f2f2f2;"><th>Thông số</th><th>Giá trị</th></tr></thead>'
+            f'<tbody>{tbody}</tbody></table>'
+        )
+
+    # ------------------------------------------------------------------
+    # Excel saver
+    # ------------------------------------------------------------------
+    def _save_excel(self, products: list, excel_path: str) -> None:
+        if not products:
+            return
+        df = pd.DataFrame(products)
+        os.makedirs(os.path.dirname(excel_path), exist_ok=True)
+        with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+            df.to_excel(writer, index=False, sheet_name="HopLong")
+            ws = writer.sheets["HopLong"]
+            for col in ws.columns:
+                max_len = max((len(str(c.value or "")) for c in col), default=10)
+                ws.column_dimensions[col[0].column_letter].width = min(max_len + 2, 80)
+
+    # ------------------------------------------------------------------
+    # Main async orchestrator
+    # ------------------------------------------------------------------
+    async def _async_crawl(self, category_urls: list, run_dir: str, checkpoint_path: str) -> None:
+        import aiohttp
+
+        page_sem = asyncio.Semaphore(self.page_concurrency)
+        product_sem = asyncio.Semaphore(self.product_concurrency)
+        img_sem = asyncio.Semaphore(self.img_concurrency)
+
+        done_urls = self._load_checkpoint(checkpoint_path)
+        if done_urls:
+            self._emit(0, f"Resume checkpoint: {len(done_urls)} SP da xong truoc do", "")
+
+        connector = aiohttp.TCPConnector(
+            limit=max(self.page_concurrency, self.product_concurrency) + 30,
+            ttl_dns_cache=300,
+            ssl=False,
+        )
+        timeout = aiohttp.ClientTimeout(total=25, connect=8)
+
+        async with aiohttp.ClientSession(
+            headers=self.BASE_HEADERS,
+            connector=connector,
+            timeout=timeout,
+        ) as session:
+
+            # Step 1: Thu thap links
+            self._emit(0, f"Quet {len(category_urls)} danh muc (async aiohttp)...", "")
+            loop = asyncio.get_event_loop()
+
+            seen_urls: set = set()
+            prod_url_to_cat: dict = {}
+            all_product_urls: list = []
+
+            for cat_url in category_urls:
+                subcats = await loop.run_in_executor(None, self._get_subcategory_urls, cat_url)
+                urls_to_scan = [cat_url] + subcats
+                if subcats:
+                    logger.info(f"[HopLong] {cat_url.split('/')[-1]}: +{len(subcats)} subcats")
+
+                link_tasks = [self._collect_links_async(session, u, page_sem) for u in urls_to_scan]
+                link_results = await asyncio.gather(*link_tasks, return_exceptions=True)
+
+                for u, links in zip(urls_to_scan, link_results):
+                    sub_name = self._safe_folder(u.rstrip('/').split('/')[-1])
+                    if isinstance(links, list):
+                        for lnk in links:
+                            if lnk not in seen_urls:
+                                seen_urls.add(lnk)
+                                prod_url_to_cat[lnk] = sub_name
+                                all_product_urls.append(lnk)
+
+            self.stats["products_found"] = len(all_product_urls)
+            self._emit(20, f"Tim thay {len(all_product_urls)} SP (dedup xong)", "")
+
+            pending = [u for u in all_product_urls if u not in done_urls]
+            logger.info(f"[HopLong] Can scrape: {len(pending)}/{len(all_product_urls)}")
+
+            if not pending:
+                self._emit(100, "Tat ca da scrape (checkpoint)!", "")
+                return
+
+            with open(os.path.join(run_dir, "product_urls.txt"), "w", encoding="utf-8") as f:
+                f.writelines(u + "\n" for u in all_product_urls)
+
+            # Step 2: Scrape qua asyncio.Queue
+            queue: asyncio.Queue = asyncio.Queue()
+            for u in pending:
+                await queue.put(u)
+
+            scraped: list = []
+            seen_skus: set = set()
+            done_count = 0
+            total = len(pending)
+            lock = asyncio.Lock()
+
+            async def _worker():
+                nonlocal done_count
+                while True:
+                    try:
+                        url = queue.get_nowait()
+                    except asyncio.QueueEmpty:
+                        break
+                    try:
+                        result = await self._scrape_product(
+                            session, url, product_sem, img_sem, run_dir, prod_url_to_cat
+                        )
+                    except Exception as e:
+                        logger.error(f"Scrape error {url}: {e}")
+                        result = None
+
+                    async with lock:
+                        done_count += 1
+                        done_urls.add(url)
+                        if result:
+                            sku = result.get("M\u00e3 s\u1ea3n ph\u1ea9m", "").strip()
+                            if sku and sku in seen_skus:
+                                logger.debug(f"Bo qua san pham trung ma: {sku}")
+                            else:
+                                if sku:
+                                    seen_skus.add(sku)
+                                scraped.append(result)
+                                self.stats["products_ok"] += 1
+                        else:
+                            self.stats["products_failed"] += 1
+
+                        if done_count % 100 == 0 or done_count == total:
+                            pct = 20 + (done_count / total) * 65
+                            self._emit(
+                                pct,
+                                f"Scrape {done_count}/{total} SP | OK:{self.stats['products_ok']} | Anh:{self.stats['images_ok']}",
+                                f"Loi:{self.stats['products_failed']}"
+                            )
+                            self._save_checkpoint(checkpoint_path, done_urls)
+                    queue.task_done()
+
+            workers = [asyncio.create_task(_worker()) for _ in range(self.product_concurrency)]
+            await asyncio.gather(*workers)
+            self._save_checkpoint(checkpoint_path, done_urls)
+
+        # Step 3: Luu Excel
+        self._emit(85, f"Scrape xong {len(scraped)} SP. Dang luu Excel...", "")
+        cat_map: dict = {}
+        for prod in scraped:
+            cf = prod_url_to_cat.get(prod.get("URL s\u1ea3n ph\u1ea9m", ""), "Khac")
+            cat_map.setdefault(cf, []).append(prod)
+
+        for cf, products in cat_map.items():
+            cat_dir = os.path.join(run_dir, cf)
+            os.makedirs(cat_dir, exist_ok=True)
+            self._save_excel(products, os.path.join(cat_dir, f"{cf}.xlsx"))
+
+        if scraped:
+            self._save_excel(scraped, os.path.join(run_dir, "Bao_cao_tong_hop.xlsx"))
+
+        self._emit(
+            100,
+            f"Hoan thanh! {len(scraped)} SP | {self.stats['images_ok']} anh | {len(cat_map)} danh muc",
+            run_dir
+        )
+        logger.info(f"HopLongProductCrawler async hoan thanh: {run_dir} | {self.stats}")
+
+    # ------------------------------------------------------------------
+    # Public sync entry point (tuong thich voi routes.py)
+    # ------------------------------------------------------------------
+    def crawl(self, category_urls: list, max_workers: int = None) -> str:
+        """Sync wrapper: chay async event loop trong thread hien tai."""
+        max_workers = max_workers or self.max_workers
+        self.product_concurrency = max(self.product_concurrency, max_workers)
+
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        run_dir = os.path.join(self.output_root, f"HopLong_{timestamp}")
+        os.makedirs(run_dir, exist_ok=True)
+
+        checkpoint_path = os.path.join(run_dir, ".checkpoint.json")
+        self.stats["categories"] = len(category_urls)
+        self._emit(0, f"Bat dau cao {len(category_urls)} danh muc (async aiohttp)", "")
+
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        try:
+            loop.run_until_complete(
+                self._async_crawl(category_urls, run_dir, checkpoint_path)
+            )
+        finally:
+            loop.close()
+            asyncio.set_event_loop(None)
+
+        return run_dir

@@ -145,6 +145,16 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <a href="{{ url_for('main.image_processor') }}" class="nav-link">
+                        <i class="bi bi-robot"></i> AI Agent Xử Lý Ảnh
+                    </a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a href="{{ url_for('main.logo_workbench') }}" class="nav-link">
+                        <i class="bi bi-layers"></i> Logo Workbench
+                    </a>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button class="nav-link" id="category-baa-images-tab" data-bs-toggle="tab"
                         data-bs-target="#category-baa-images" type="button" role="tab"
                         aria-controls="category-baa-images" aria-selected="false">
@@ -203,9 +213,87 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
-                    <button class="nav-link" id="baa-qlight-tab" data-bs-toggle="tab" data-bs-target="#baa-qlight"
-                        type="button" role="tab" aria-controls="baa-qlight" aria-selected="false">
+                    <button class="nav-link" id="allen-bradley-crawler-tab" data-bs-toggle="tab" data-bs-target="#allen-bradley-crawler"
+                        type="button" role="tab" aria-controls="allen-bradley-crawler" aria-selected="false">
+                        <i class="bi bi-box"></i> Cào dữ liệu Allen Bradley
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="cdha-crawler-tab" data-bs-toggle="tab" data-bs-target="#cdha-crawler"
+                        type="button" role="tab" aria-controls="cdha-crawler" aria-selected="false">
+                        <i class="bi bi-building"></i> Cào dữ liệu Cơ Điện Hải Âu
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="thegioicapservo-crawler-tab" data-bs-toggle="tab" data-bs-target="#thegioicapservo-crawler"
+                        type="button" role="tab" aria-controls="thegioicapservo-crawler" aria-selected="false">
+                        <i class="bi bi-hdd-network"></i> Cào Thế Giới Cáp Servo
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="festo-crawler-tab" data-bs-toggle="tab" data-bs-target="#festo-crawler"
+                        type="button" role="tab" aria-controls="festo-crawler" aria-selected="false">
+                        <i class="bi bi-cpu"></i> Cào dữ liệu Festo Việt Nam
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="cognex-crawler-tab" data-bs-toggle="tab" data-bs-target="#cognex-crawler"
+                        type="button" role="tab" aria-controls="cognex-crawler" aria-selected="false">
+                        <i class="bi bi-camera"></i> Cào dữ liệu COGNEX (Thiên Trường PC)
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="meanwell-crawler-tab" data-bs-toggle="tab" data-bs-target="#meanwell-crawler"
+                        type="button" role="tab" aria-controls="meanwell-crawler" aria-selected="false">
+                        <i class="bi bi-lightning"></i> Cào dữ liệu MeanWell
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link" href="{{ url_for('main.chauphatsafety_crawler') }}" target="_blank">
+                        <i class="bi bi-shield-check"></i> Cào dữ liệu Chauphatsafety
+                    </a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="sunje-crawler-tab" data-bs-toggle="tab" data-bs-target="#sunje-crawler"
+                        type="button" role="tab" aria-controls="sunje-crawler" aria-selected="false">
+                        <i class="bi bi-star"></i> Cào dữ liệu SUNJE
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="panasonic-crawler-tab" data-bs-toggle="tab"
+                        data-bs-target="#panasonic-crawler" type="button" role="tab" aria-controls="panasonic-crawler"
+                        aria-selected="false">
+                        <i class="bi bi-lightning-charge"></i> Cào dữ liệu Panasonic
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="lsa-crawler-tab" data-bs-toggle="tab" data-bs-target="#lsa-crawler"
+                        type="button" role="tab" aria-controls="lsa-crawler" aria-selected="false">
+                        <i class="bi bi-gear"></i> Cào dữ liệu LS Automation
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="woonyoung-crawler-tab" data-bs-toggle="tab"
+                        data-bs-target="#woonyoung-crawler" type="button" role="tab" aria-controls="woonyoung-crawler"
+                        aria-selected="false">
+                        <i class="bi bi-globe"></i> Cào dữ liệu WOONYOUNG
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <a class="nav-link" href="{{ url_for('main.baa_qlight_crawler') }}" target="_blank">
                         <i class="bi bi-lightbulb"></i> Cào dữ liệu BAA Qlight
+                    </a>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="ifm-crawler-tab" data-bs-toggle="tab" data-bs-target="#ifm-crawler"
+                        type="button" role="tab" aria-controls="ifm-crawler" aria-selected="false">
+                        <i class="bi bi-robot"></i> Cào dữ liệu IFM
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="sick-crawler-tab" onclick="window.open('/sick', '_blank')"
+                        type="button">
+                        <i class="bi bi-robot"></i> Cào dữ liệu SICK
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
@@ -243,9 +331,31 @@
                     </button>
                 </li>
                 <li class="nav-item" role="presentation">
+                    <button class="nav-link" id="mitsubishi-crawler-tab" onclick="window.open('/mitsubishi', '_blank')"
+                        type="button">
+                        <i class="bi bi-robot"></i> Cào dữ liệu Mitsubishi Electric
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
                     <button class="nav-link" id="hoplong-crawler-tab" onclick="window.open('/hoplong', '_blank')"
                         type="button">
                         <i class="bi bi-bag"></i> Cào dữ liệu HopLongTech.com
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'merge-excel-tab' %}active{% endif %}"
+                        id="merge-excel-tab" data-bs-toggle="tab" data-bs-target="#merge-excel" type="button" role="tab"
+                        aria-controls="merge-excel"
+                        aria-selected="{% if active_tab == 'merge-excel-tab' %}true{% else %}false{% endif %}">
+                        <i class="bi bi-file-spreadsheet"></i> Gộp File Excel
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if active_tab == 'merge-excel-folder-tab' %}active{% endif %}"
+                        id="merge-excel-folder-tab" data-bs-toggle="tab" data-bs-target="#merge-excel-folder"
+                        type="button" role="tab" aria-controls="merge-excel-folder"
+                        aria-selected="{% if active_tab == 'merge-excel-folder-tab' %}true{% else %}false{% endif %}">
+                        <i class="bi bi-folder"></i> Gộp từ Folder/ZIP
                     </button>
                 </li>
             </ul>
@@ -1292,6 +1402,28 @@ Ví dụ: https://baa.vn/vn/Category/cam-bien-autonics_1795"></textarea>
                                         </div>
                                     </div>
 
+                                    <div class="form-row mt-3">
+                                        <div class="form-group col-md-12">
+                                            <label for="crawl_method">Phương thức cào dữ liệu (áp dụng khi trang web phản hồi chậm):</label>
+                                            <select class="form-control" id="crawl_method" name="crawl_method">
+                                                <option value="normal" selected>Bình thường (Thử trực tiếp -> Wayback -> Google Cache)</option>
+                                                <option value="google_cache">Chỉ cào bằng Google Cache (Nhanh hơn nếu bị chặn)</option>
+                                            </select>
+                                        </div>
+                                    </div>
+
+                                    <div class="form-group mb-3 mt-3">
+                                        <div class="custom-control custom-checkbox">
+                                            <input type="checkbox" class="custom-control-input" id="only_catalog" name="only_catalog">
+                                            <label class="custom-control-label font-weight-bold text-primary" for="only_catalog" style="cursor: pointer;">
+                                                <i class="bi bi-file-earmark-pdf-fill"></i> Chỉ cào catalog (PDF)
+                                            </label>
+                                            <small class="form-text text-muted d-block mt-1">
+                                                Khi bật, hệ thống chỉ tải các tài liệu PDF (catalog) của sản phẩm và tự động đặt tên file theo mã sản phẩm (nhanh hơn và tránh bị chặn).
+                                            </small>
+                                        </div>
+                                    </div>
+
                                     <button type="submit" class="btn btn-primary">Bắt đầu cào dữ liệu</button>
                                 </form>
                             </div>
@@ -1474,9 +1606,38 @@ Ví dụ: https://baa.vn/vn/Category/cam-bien-autonics_1795"></textarea>
                             </label>
                             <div id="input_image_name" class="mb-3 text-muted"></div>
 
+                            <div class="row g-3 mb-3">
+                                <div class="col-md-4">
+                                    <label class="form-label">Kích thước đích</label>
+                                    <select name="target" class="form-select">
+                                        <option value="600x600">600x600</option>
+                                        <option value="800x800" selected>800x800</option>
+                                        <option value="1024x1024">1024x1024</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label class="form-label">Chế độ AI (Real-ESRGAN)</label>
+                                    <select name="use_ai" class="form-select">
+                                        <option value="1" selected>Bật (nếu khả dụng)</option>
+                                        <option value="0">Tắt</option>
+                                    </select>
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Sharpness</label>
+                                    <input type="number" step="0.05" min="0.8" max="1.6" name="sharpen" value="1.20"
+                                        class="form-control" />
+                                </div>
+                                <div class="col-md-2">
+                                    <label class="form-label">Contrast</label>
+                                    <input type="number" step="0.05" min="0.9" max="1.3" name="contrast" value="1.08"
+                                        class="form-control" />
+                                </div>
+                            </div>
+
                             <div class="alert alert-info mb-3">
-                                <i class="bi bi-info-circle-fill"></i> Ảnh sẽ được chuyển đổi thành kích thước
-                                <strong>600x600 pixel</strong> với chất lượng tối ưu.
+                                <i class="bi bi-info-circle-fill"></i>
+                                Đề xuất: Bật AI (nếu có) để phục hồi chi tiết, sau đó downscale bằng LANCZOS; sharpen
+                                1.15–1.30, contrast 1.05–1.10.
                             </div>
 
                             <button type="submit" class="btn btn-primary w-100">
@@ -1625,6 +1786,1521 @@ Ví dụ: https://baa.vn/vn/Category/cam-bien-autonics_1795"></textarea>
                             <div class="alert alert-danger">
                                 <h6 class="mb-2">Có lỗi xảy ra!</h6>
                                 <p class="mb-0" id="misumi-error-message"></p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab cào dữ liệu từ Allen Bradley -->
+                <div class="tab-pane fade" id="allen-bradley-crawler" role="tabpanel" aria-labelledby="allen-bradley-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu sản phẩm từ Allen Bradley</h4>
+
+                        <ul class="nav nav-pills mb-3" id="ab-pills-tab" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="ab-pills-category-tab" data-bs-toggle="pill" data-bs-target="#ab-pills-category" type="button" role="tab" aria-controls="ab-pills-category" aria-selected="true">Cào link từ Danh mục</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="ab-pills-product-tab" data-bs-toggle="pill" data-bs-target="#ab-pills-product" type="button" role="tab" aria-controls="ab-pills-product" aria-selected="false">Cào chi tiết Sản phẩm</button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="ab-pills-merge-tab" data-bs-toggle="pill" data-bs-target="#ab-pills-merge" type="button" role="tab" aria-controls="ab-pills-merge" aria-selected="false">Gộp file Link Excel</button>
+                            </li>
+                        </ul>
+                        
+                        <div class="tab-content" id="ab-pills-tabContent">
+                            <!-- Tab 1: Cào link từ danh mục -->
+                            <div class="tab-pane fade show active" id="ab-pills-category" role="tabpanel" aria-labelledby="ab-pills-category-tab">
+                                <div class="card mt-3">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="mb-0">Cào link sản phẩm từ Danh mục Allen Bradley</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form action="{{ url_for('main.crawl_ab_category_links') }}" method="post">
+                                            <div class="form-group">
+                                                <label for="ab_category_urls">Nhập URL danh mục hoặc <b>Dán toàn bộ mã HTML</b> của danh mục (giải pháp chống Block):</label>
+                                                <textarea class="form-control" id="ab_category_urls" name="category_urls" rows="5" required></textarea>
+                                                <small class="form-text text-muted">Ví dụ: Dán mã HTML lấy từ Ctrl+U (hoặc Inspect F12) của trang danh mục để hệ thống tự lọc link sản phẩm.</small>
+                                            </div>
+                                            <button type="submit" class="btn btn-primary">Bắt đầu cào link</button>
+                                        </form>
+                                    </div>
+                                </div>
+
+                                <div class="card mt-3">
+                                    <div class="card-header bg-success text-white">
+                                        <h5 class="mb-0">Cào link qua API Search (JSON từ Network DevTools)</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form action="{{ url_for('main.crawl_ab_api_links') }}" method="post">
+                                            <div class="form-group">
+                                                <label for="ab_api_url">Nhập Request URL của API (lấy từ DevTools Network):</label>
+                                                <textarea class="form-control" id="ab_api_url" name="api_url" rows="3" placeholder="https://www.rockwellautomation.com/bin/ra/multi-search/..." required></textarea>
+                                                <small class="form-text text-muted">Mẹo: Mở Chrome DevTools (F12) -> Network -> Lọc "Fetch/XHR" -> Tìm request JSON chứa danh sách sản phẩm và copy Link.</small>
+                                            </div>
+                                            <div class="form-row">
+                                                <div class="form-group col-md-4">
+                                                    <label for="ab_api_page_size">Page Size (Kích thước trang):</label>
+                                                    <input type="number" class="form-control" id="ab_api_page_size" name="page_size" value="200" required>
+                                                </div>
+                                                <div class="form-group col-md-4">
+                                                    <label for="ab_api_total">Tổng số sản phẩm tối đa:</label>
+                                                    <input type="number" class="form-control" id="ab_api_total" name="total_expected" value="3000" required>
+                                                </div>
+                                                <div class="form-group col-md-4">
+                                                    <label for="ab_api_pagination_type">Loại phân trang:</label>
+                                                    <select class="form-control" id="ab_api_pagination_type" name="pagination_type">
+                                                        <option value="from_size" selected>from & size</option>
+                                                        <option value="offset_limit">offset & limit</option>
+                                                        <option value="startIndex_numResults">startIndex & numResults (ví dụ: 1-72 of 2176)</option>
+                                                        <option value="page_size_0">page & size (từ trang 0)</option>
+                                                        <option value="page_size_1">page & size (từ trang 1)</option>
+                                                        <option value="custom">Tùy chỉnh tham số...</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+                                            
+                                            <div class="form-row mt-2" id="custom_params_row" style="display:none;">
+                                                <div class="form-group col-md-6">
+                                                    <label for="offset_param">Tên tham số Phân trang/Offset (ví dụ: `startIndex`, `from`):</label>
+                                                    <input type="text" class="form-control" id="offset_param" name="offset_param" placeholder="Mặc định theo loại phân trang">
+                                                </div>
+                                                <div class="form-group col-md-6">
+                                                    <label for="limit_param">Tên tham số Kích thước trang (ví dụ: `numResults`, `size`):</label>
+                                                    <input type="text" class="form-control" id="limit_param" name="limit_param" placeholder="Mặc định theo loại phân trang">
+                                                </div>
+                                            </div>
+
+                                            <script>
+                                                document.getElementById('ab_api_pagination_type').addEventListener('change', function() {
+                                                    var customRow = document.getElementById('custom_params_row');
+                                                    if (this.value === 'custom') {
+                                                        customRow.style.display = 'flex';
+                                                    } else {
+                                                        customRow.style.display = 'none';
+                                                    }
+                                                });
+                                            </script>
+                                            
+                                            <button type="submit" class="btn btn-success mt-2">Bắt đầu quét link qua API</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+                            
+                            <!-- Tab 2: Cào chi tiết sản phẩm -->
+                            <div class="tab-pane fade" id="ab-pills-product" role="tabpanel" aria-labelledby="ab-pills-product-tab">
+                                <div class="card mt-3">
+                                    <div class="card-header bg-primary text-white">
+                                        <h5 class="mb-0">Cào dữ liệu Allen Bradley</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form action="{{ url_for('main.crawl_allen_bradley') }}" method="post" enctype="multipart/form-data">
+                                            <div class="form-group">
+                                                <label for="ab_category_urls">Nhập URL sản phẩm (<b>mỗi URL một dòng</b>):</label>
+                                                <textarea class="form-control" id="ab_category_urls" name="category_urls" rows="5"></textarea>
+                                                <small class="form-text text-muted">Ví dụ: https://www.rockwellautomation.com/en-us/products/details.140MT-F9T-C45.html</small>
+                                            </div>
+
+                                            <div class="form-group">
+                                                <label for="ab_product_file">Hoặc <b>Tải lên file Excel</b> chứa link sản phẩm (.xlsx, .xls):</label>
+                                                <input type="file" class="form-control-file" id="ab_product_file" name="link_file" accept=".xlsx, .xls">
+                                                <small class="form-text text-muted">Hệ thống sẽ quét file Excel để lấy các link sản phẩm Allen Bradley cần cào.</small>
+                                            </div>
+        
+                                            <div class="form-row">
+                                                <div class="form-group col-md-6">
+                                                    <label for="max_workers">Số luồng tối đa:</label>
+                                                    <select class="form-control" id="max_workers" name="max_workers">
+                                                        <option value="4">4 luồng</option>
+                                                        <option value="5" selected>5 luồng (mặc định)</option>
+                                                        <option value="8">8 luồng</option>
+                                                    </select>
+                                                </div>
+                                                <div class="form-group col-md-6">
+                                                    <label for="max_retries">Số lần thử lại tối đa:</label>
+                                                    <select class="form-control" id="max_retries" name="max_retries">
+                                                        <option value="1">1 lần</option>
+                                                        <option value="3" selected>3 lần (mặc định)</option>
+                                                    </select>
+                                                </div>
+                                            </div>
+        
+                                            <button type="submit" class="btn btn-primary">Bắt đầu cào dữ liệu</button>
+                                        </form>
+                                    </div>
+                                </div>
+                            </div>
+
+                            <!-- Tab 3: Gộp file link Excel -->
+                            <div class="tab-pane fade" id="ab-pills-merge" role="tabpanel" aria-labelledby="ab-pills-merge-tab">
+                                <div class="card mt-3">
+                                    <div class="card-header bg-success text-white">
+                                        <h5 class="mb-0">Gộp file Excel chứa link sản phẩm Allen Bradley</h5>
+                                    </div>
+                                    <div class="card-body">
+                                        <form action="{{ url_for('main.merge_ab_links') }}" method="post" enctype="multipart/form-data">
+                                            <div class="form-group">
+                                                <label for="ab_link_files">Chọn các file Excel chứa link (.xlsx, .xls):</label>
+                                                <input type="file" class="form-control" id="ab_link_files" name="link_files" multiple accept=".xlsx, .xls" required>
+                                                <small class="form-text text-muted">Chọn một hoặc nhiều file Excel chứa link đã cào được từ Allen Bradley. Hệ thống sẽ tự động lọc, trích xuất tất cả link sản phẩm và gộp thành một file duy nhất, tự động loại bỏ trùng lặp.</small>
+                                            </div>
+                                            <button type="submit" class="btn btn-success">Bắt đầu gộp file</button>
+                                        </form>
+
+                                        {% if session.ab_merge_download_url %}
+                                        <div class="alert alert-success mt-3">
+                                            <h5>Kết quả gộp file thành công!</h5>
+                                            <p>Đã gộp thành công <b>{{ session.ab_merge_info.total_files }}</b> file Excel.</p>
+                                            <p>Tổng số link tìm thấy: <b>{{ session.ab_merge_info.total_links }}</b> link (sau khi loại bỏ trùng lặp).</p>
+                                            <a href="{{ session.ab_merge_download_url }}" class="btn btn-primary">
+                                                <i class="bi bi-download"></i> Tải file gộp ({{ session.ab_merge_info.filename }})
+                                            </a>
+                                        </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab cào dữ liệu từ Cơ Điện Hải Âu -->
+                <div class="tab-pane fade" id="cdha-crawler" role="tabpanel" aria-labelledby="cdha-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu sản phẩm từ Cơ Điện Hải Âu</h4>
+
+                        <div class="card mt-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Cào dữ liệu Cơ Điện Hải Âu</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('main.crawl_codienhaiau') }}" method="post">
+                                    <div class="form-group">
+                                        <label for="category_urls">Nhập URL danh mục hoặc sản phẩm (<b>mỗi URL một
+                                                dòng</b>):</label>
+                                        <textarea class="form-control" id="category_urls" name="category_urls" rows="5"
+                                            required></textarea>
+                                        <small class="form-text text-muted">Ví dụ:
+                                            https://codienhaiau.com/category/abb/acb-abb/,
+                                            https://codienhaiau.com/product/1sda073558r1/</small>
+                                    </div>
+
+                                    <!-- Thêm tùy chọn nâng cao -->
+                                    <div class="form-row">
+                                        <div class="form-group col-md-6">
+                                            <label for="max_workers">Số luồng tối đa:</label>
+                                            <select class="form-control" id="max_workers" name="max_workers">
+                                                <option value="4">4 luồng (máy yếu)</option>
+                                                <option value="8" selected>8 luồng (mặc định)</option>
+                                                <option value="12">12 luồng (máy tốt)</option>
+                                                <option value="16">16 luồng (máy mạnh)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Nhiều luồng hơn tăng tốc xử lý nhưng yêu
+                                                cầu máy tính mạnh hơn</small>
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <label for="max_retries">Số lần thử lại tối đa:</label>
+                                            <select class="form-control" id="max_retries" name="max_retries">
+                                                <option value="1">1 lần (nhanh nhất)</option>
+                                                <option value="3" selected>3 lần (mặc định)</option>
+                                                <option value="5">5 lần (chính xác cao)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Nhiều lần thử lại nếu mạng không ổn
+                                                định</small>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary">Bắt đầu cào dữ liệu</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Thông tin về chức năng -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Thông tin về chức năng</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Chức năng này tự động cào dữ liệu sản phẩm từ website Cơ Điện Hải Âu với các tính
+                                    năng:</p>
+                                <ol>
+                                    <li><strong>Tên sản phẩm:</strong> Trích xuất từ thẻ h1.product_title.entry-title
+                                    </li>
+                                    <li><strong>Mã sản phẩm:</strong> Trích xuất từ span.sku_wrapper span.sku</li>
+                                    <li><strong>Ảnh sản phẩm:</strong> Tải và chuyển đổi sang định dạng WebP từ
+                                        figure.woocommerce-product-gallery__wrapper</li>
+                                    <li><strong>Thông số kỹ thuật:</strong> Trích xuất từ bảng
+                                        woocommerce-product-attributes</li>
+                                    <li><strong>Xử lý đa luồng:</strong> Tăng tốc độ cào dữ liệu với nhiều luồng song
+                                        song</li>
+                                    <li><strong>Xuất Excel:</strong> Tạo báo cáo Excel với thông số kỹ thuật dạng HTML
+                                        table</li>
+                                </ol>
+                                <div class="alert alert-warning mt-3">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                    <strong>Lưu ý:</strong> Mỗi bảng thông số kỹ thuật sẽ tự động thêm dòng "Copyright:
+                                    Haiphongtech.vn" ở cuối. Tất cả ảnh sẽ được chuyển đổi sang định dạng WebP để tối ưu
+                                    dung lượng.
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- ════════════════════════════════════════════ -->
+                        <!-- Tab con: Cào Catalog PDF (Async + GDrive)   -->
+                        <!-- ════════════════════════════════════════════ -->
+                        <hr class="my-4">
+                        <div class="card mt-3 border-success">
+                            <div class="card-header bg-success text-white d-flex align-items-center gap-2">
+                                <i class="bi bi-file-earmark-pdf-fill fs-5"></i>
+                                <h5 class="mb-0">Cào Catalog PDF — Lưu Google Drive</h5>
+                            </div>
+                            <div class="card-body">
+                                <!-- Mô tả luồng -->
+                                <div class="alert alert-info mb-3">
+                                    <strong>Luồng xử lý:</strong>
+                                    <div class="d-flex flex-wrap gap-1 mt-2 align-items-center" style="font-size:0.82rem;">
+                                        <span class="badge bg-primary">Category URL</span>
+                                        <i class="bi bi-arrow-right"></i>
+                                        <span class="badge bg-secondary">Lấy link sản phẩm</span>
+                                        <i class="bi bi-arrow-right"></i>
+                                        <span class="badge bg-dark">SQLite <code class="text-light">pending</code></span>
+                                        <i class="bi bi-arrow-right"></i>
+                                        <span class="badge bg-warning text-dark">Async worker</span>
+                                        <i class="bi bi-arrow-right"></i>
+                                        <span class="badge bg-info text-dark">Tải HTML → Parse</span>
+                                        <i class="bi bi-arrow-right"></i>
+                                        <span class="badge bg-danger">Tải PDF song song</span>
+                                        <i class="bi bi-arrow-right"></i>
+                                        <span class="badge bg-success">Lưu JSONL / DB</span>
+                                        <i class="bi bi-arrow-right"></i>
+                                        <span class="badge" style="background:#0f9d58;">
+                                            <i class="bi bi-google"></i> Google Drive
+                                        </span>
+                                    </div>
+                                </div>
+
+                                <form action="{{ url_for('main.crawl_cdha_catalog') }}" method="post"
+                                      id="cdha-catalog-form">
+                                    <!-- URL danh mục -->
+                                    <div class="mb-3">
+                                        <label for="catalog_category_urls" class="form-label fw-semibold">
+                                            <i class="bi bi-link-45deg"></i> URL danh mục cần cào catalog
+                                            (<b>mỗi URL một dòng</b>):
+                                        </label>
+                                        <textarea class="form-control font-monospace" id="catalog_category_urls"
+                                            name="catalog_category_urls" rows="4" required
+                                            placeholder="https://codienhaiau.com/category/abb/acb-abb/&#10;https://codienhaiau.com/category/ls/bien-tan-ls/"></textarea>
+                                        <small class="text-muted">
+                                            Hệ thống tự động duyệt qua tất cả trang sản phẩm trong danh mục,
+                                            tìm file PDF catalog được nhúng bằng plugin <code>pdfemb-viewer</code>,
+                                            tải về và upload lên Google Drive.
+                                        </small>
+                                    </div>
+
+                                    <div class="row g-3 mb-3">
+                                        <!-- Số worker -->
+                                        <div class="col-md-5">
+                                            <label for="catalog_max_concurrency" class="form-label">
+                                                <i class="bi bi-cpu"></i> Số worker đồng thời:
+                                            </label>
+                                            <select class="form-select" id="catalog_max_concurrency"
+                                                    name="catalog_max_concurrency">
+                                                <option value="3">3 (nhẹ nhàng)</option>
+                                                <option value="5" selected>5 (mặc định)</option>
+                                                <option value="10">10 (nhanh)</option>
+                                                <option value="15">15 (mạnh)</option>
+                                                <option value="20">20 (tối đa)</option>
+                                            </select>
+                                            <small class="text-muted">Số luồng async tải PDF song song</small>
+                                        </div>
+
+                                        <!-- Upload GDrive -->
+                                        <div class="col-md-7 d-flex align-items-center pt-3">
+                                            <div class="form-check form-switch">
+                                                <input class="form-check-input" type="checkbox"
+                                                       id="catalog_upload_gdrive"
+                                                       name="catalog_upload_gdrive" value="true" checked>
+                                                <label class="form-check-label fw-semibold" for="catalog_upload_gdrive">
+                                                    <i class="bi bi-cloud-upload-fill text-success"></i>
+                                                    Tự động upload PDF lên Google Drive
+                                                </label>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <!-- GDrive folder info -->
+                                    <div class="alert alert-success py-2 mb-3">
+                                        <i class="bi bi-folder2-open me-1"></i>
+                                        <strong>Thư mục Google Drive đích:</strong>
+                                        <a href="https://drive.google.com/drive/folders/1C3ngqRVWJdD4skZnK9zUuLIJJK_ULX2Q"
+                                           target="_blank" class="ms-1">
+                                            <code>1C3ngqRVWJdD4skZnK9zUuLIJJK_ULX2Q</code>
+                                            <i class="bi bi-box-arrow-up-right ms-1"></i>
+                                        </a>
+                                        <br>
+                                        <small class="text-muted">
+                                            Cần file <code>credentials.json</code> (service account) hoặc
+                                            <code>token.json</code> trong thư mục gốc dự án.
+                                        </small>
+                                    </div>
+
+                                    <!-- Khu vực tiến trình realtime -->
+                                    <div id="catalog-progress-area" style="display:none;" class="mb-3">
+                                        <label class="form-label fw-semibold">
+                                            <i class="bi bi-activity"></i> Tiến trình:
+                                        </label>
+                                        <div class="progress mb-2" style="height:22px;">
+                                            <div id="catalog-progress-bar"
+                                                 class="progress-bar progress-bar-striped progress-bar-animated bg-success"
+                                                 role="progressbar" style="width:0%">0%</div>
+                                        </div>
+                                        <div id="catalog-status-msg" class="text-muted small"></div>
+                                        <div class="row g-2 mt-1" id="catalog-stats-row" style="display:none;">
+                                            <div class="col-4 text-center">
+                                                <div class="badge bg-success w-100 py-2">
+                                                    <div class="fs-5" id="cs-done">0</div>
+                                                    <div style="font-size:0.7rem;">Xong</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4 text-center">
+                                                <div class="badge bg-danger w-100 py-2">
+                                                    <div class="fs-5" id="cs-pdf">0</div>
+                                                    <div style="font-size:0.7rem;">PDF tải</div>
+                                                </div>
+                                            </div>
+                                            <div class="col-4 text-center">
+                                                <div class="badge w-100 py-2" style="background:#0f9d58;">
+                                                    <div class="fs-5" id="cs-drive">0</div>
+                                                    <div style="font-size:0.7rem;">GDrive</div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-success w-100 py-2"
+                                            id="catalog-submit-btn">
+                                        <i class="bi bi-file-earmark-pdf-fill me-1"></i>
+                                        Bắt đầu cào Catalog PDF
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <script>
+                (function() {
+                    // Realtime progress cho catalog crawler
+                    if (typeof io === 'undefined') return;
+                    var socket = io();
+
+                    var form = document.getElementById('cdha-catalog-form');
+                    if (!form) return;
+
+                    form.addEventListener('submit', function() {
+                        document.getElementById('catalog-progress-area').style.display = 'block';
+                        document.getElementById('catalog-submit-btn').disabled = true;
+                        document.getElementById('catalog-submit-btn').innerHTML =
+                            '<span class="spinner-border spinner-border-sm me-1"></span> Đang xử lý...';
+                    });
+
+                    socket.on('catalog_progress', function(data) {
+                        var pct = data.percent || 0;
+                        var bar = document.getElementById('catalog-progress-bar');
+                        var msg = document.getElementById('catalog-status-msg');
+                        if (bar) {
+                            bar.style.width = pct + '%';
+                            bar.textContent = pct + '%';
+                        }
+                        if (msg) msg.textContent = data.message || '';
+
+                        if (data.done !== undefined) {
+                            document.getElementById('catalog-stats-row').style.display = 'flex';
+                            document.getElementById('cs-done').textContent  = data.done || 0;
+                            document.getElementById('cs-pdf').textContent   = data.pdf_downloaded || 0;
+                            document.getElementById('cs-drive').textContent = data.gdrive_uploaded || 0;
+                        }
+                    });
+                })();
+                </script>
+                </div>
+
+                <!-- Tab cào dữ liệu từ Thế Giới Cáp Servo -->
+                <div class="tab-pane fade" id="thegioicapservo-crawler" role="tabpanel" aria-labelledby="thegioicapservo-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu sản phẩm từ Thế Giới Cáp Servo</h4>
+
+                        <div class="card mt-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0"><i class="bi bi-hdd-network me-2"></i>Cào dữ liệu thegioicapservo.com</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('main.crawl_thegioicapservo') }}" method="post">
+                                    <div class="form-group">
+                                        <label for="category_urls_thegioicapservo">Nhập URL danh mục hoặc sản phẩm (<b>mỗi URL một dòng</b>):</label>
+                                        <textarea class="form-control" id="category_urls_thegioicapservo" name="category_urls" rows="5"
+                                            placeholder="https://thegioicapservo.com/cap-dong-luc-mitsubishi&#10;https://thegioicapservo.com/cap-dong-luc-mitsubishi/MR-PWS1CBL1M-A1-L" required></textarea>
+                                        <small class="form-text text-muted">Ví dụ:
+                                            https://thegioicapservo.com/cap-dong-luc-mitsubishi
+                                        </small>
+                                    </div>
+
+                                    <!-- Thêm tùy chọn nâng cao -->
+                                    <div class="form-row mt-3">
+                                        <div class="form-group col-md-6">
+                                            <label for="max_workers_tgcs">Số luồng tối đa:</label>
+                                            <select class="form-control" id="max_workers_tgcs" name="max_workers">
+                                                <option value="4">4 luồng (máy yếu)</option>
+                                                <option value="6" selected>6 luồng (mặc định - ổn định)</option>
+                                                <option value="8">8 luồng (máy tốt)</option>
+                                                <option value="12">12 luồng (máy mạnh)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Số luồng xử lý song song các sản phẩm và hình ảnh</small>
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <label for="max_retries_tgcs">Số lần thử lại tối đa:</label>
+                                            <select class="form-control" id="max_retries_tgcs" name="max_retries">
+                                                <option value="1">1 lần (nhanh nhất)</option>
+                                                <option value="3" selected>3 lần (mặc định)</option>
+                                                <option value="5">5 lần (chính xác cao)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Tự động thử lại nếu đường truyền mạng không ổn định</small>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary mt-3">
+                                        <i class="bi bi-play-circle me-1"></i> Bắt đầu cào dữ liệu
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Thông tin về chức năng -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0"><i class="bi bi-info-circle me-2"></i>Quy cách dữ liệu xuất ra</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Chức năng tự động cào toàn bộ sản phẩm qua phân trang của Thế Giới Cáp Servo với các đặc điểm:</p>
+                                <ul>
+                                    <li><strong>Mã sản phẩm:</strong> Bóc tách chính xác từ <code>.product_vendor</code> (Dòng sản phẩm).</li>
+                                    <li><strong>Tên sản phẩm:</strong> Trích xuất chuẩn xác từ <code>.product_name</code>.</li>
+                                    <li><strong>Bảng Thông số kỹ thuật:</strong> Chuẩn hóa sang bảng HTML có <code>id="specifications"</code> với Mã SP, Tên SP và bắt buộc thêm dòng Copyright <code>Haiphongtech.vn</code> ở cuối.</li>
+                                    <li><strong>Ảnh sản phẩm:</strong> Tải ảnh gốc chất lượng cao, ép kích thước về chuẩn <strong>800x800 px</strong>, chuyển đổi sang định dạng <strong>.webp</strong> và đặt tên theo mã sản phẩm (Ví dụ: <code>MR-PWS1CBL1M-A1-L.webp</code>).</li>
+                                    <li><strong>Cột riêng Tên ảnh:</strong> Trong file Excel báo cáo có cột riêng biệt lưu tên file ảnh đã đặt.</li>
+                                    <li><strong>Cấu trúc thư mục:</strong> Lưu trữ phân cấp theo từng danh mục chuẩn BAA.vn, đóng gói file ZIP tự động.</li>
+                                </ul>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab cào dữ liệu từ COGNEX (Thiên Trường PC) -->
+                
+                <!-- Tab cào dữ liệu MeanWell -->
+                <div class="tab-pane fade" id="meanwell-crawler" role="tabpanel" aria-labelledby="meanwell-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu MeanWell</h4>
+                        <div class="data-format">
+                            <h5>Chức năng này sẽ:</h5>
+                            <ol>
+                                <li>Tải file PDF thông số (Catalog) tự động dựa vào mã sản phẩm.</li>
+                                <li>Phân tích ảnh tốt nhất từ bìa Catalog và chuyển sang định dạng WebP 800x800 chuẩn SEO.</li>
+                                <li>Trích xuất các dòng thiết bị chi tiết (VD: RS-15-3.3, RS-15-5...).</li>
+                                <li>Bóc tách bảng SPECIFICATION và xử lý thông số bị thiếu/gộp ô chuẩn xác.</li>
+                                <li>Đóng gói 1 file Excel + toàn bộ ảnh vào 1 file ZIP để tải về.</li>
+                            </ol>
+                        </div>
+
+                        <div class="steps mt-3">
+                            <div class="step">
+                                <p>Tải lên file <strong>.txt</strong> chứa danh sách URL danh mục (hoặc dán trực tiếp vào ô chữ).</p>
+                            </div>
+                            <div class="step">
+                                <p>Ví dụ URL: <code>https://www.meanwell.com/webapp/product/search.aspx?prod=RS-15</code></p>
+                            </div>
+                        </div>
+
+                        <form action="/scrape-meanwell" method="post" enctype="multipart/form-data" id="meanwell-form">
+                            <div class="mb-3">
+                                <label for="meanwell_urls" class="form-label">Dán link (mỗi link 1 dòng):</label>
+                                <textarea class="form-control" id="meanwell_urls" name="urls" rows="4" placeholder="https://www.meanwell.com/webapp/product/search.aspx?prod=RS-15"></textarea>
+                            </div>
+                            <label for="meanwell_link_file" class="file-input-label mt-2">
+                                <i class="bi bi-file-earmark-text fs-3"></i>
+                                <div class="mt-2">Hoặc tải file .txt chứa danh sách link</div>
+                                <input type="file" id="meanwell_link_file" name="link_file" class="d-none" accept=".txt" onchange="updateFileName(this, 'meanwell_file_name')">
+                            </label>
+                            <div id="meanwell_file_name" class="mb-3 text-muted"></div>
+                            
+                            <button type="submit" class="btn btn-primary w-100 mt-2">
+                                <i class="bi bi-lightning-charge me-2"></i>Bắt đầu cào dữ liệu MeanWell
+                            </button>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- Tab cào dữ liệu từ Festo Việt Nam -->
+                <div class="tab-pane fade" id="festo-crawler" role="tabpanel" aria-labelledby="festo-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu sản phẩm từ Festo Việt Nam</h4>
+
+                        <div class="card mt-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Cào dữ liệu Festo Việt Nam</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('main.crawl_festo') }}" method="post">
+                                    <div class="form-group">
+                                        <label for="category_urls">Nhập URL danh mục hoặc sản phẩm (<b>mỗi URL một dòng</b>):</label>
+                                        <textarea class="form-control" id="festo_category_urls" name="category_urls" rows="5" required></textarea>
+                                        <small class="form-text text-muted">Ví dụ:
+                                            https://www.festo.com/vn/vi/p/cam-bien-quang-dien-id_SOEG_R</small>
+                                    </div>
+
+                                    <div class="form-row">
+                                        <div class="form-group col-md-12">
+                                            <label for="max_workers">Số luồng tối đa (Tải song song):</label>
+                                            <select class="form-control" id="festo_max_workers" name="max_workers">
+                                                <option value="2">2 luồng (An toàn)</option>
+                                                <option value="4" selected>4 luồng (Mặc định)</option>
+                                                <option value="8">8 luồng (Nhanh)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Nhiều luồng hơn tăng tốc xử lý nhưng có thể làm tăng nguy cơ bị chặn bởi CDN/Cloudflare</small>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary mt-2">Bắt đầu cào dữ liệu Festo</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Thông tin về chức năng -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Thông tin về chức năng</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Chức năng này tự động cào dữ liệu sản phẩm từ website Festo Việt Nam với các tính năng:</p>
+                                <ol>
+                                    <li><strong>Tên sản phẩm:</strong> Trích xuất tiêu đề sản phẩm chi tiết</li>
+                                    <li><strong>Mã đặt hàng / Part Number:</strong> Trích xuất mã đặt hàng và mã mặt hàng từ trang</li>
+                                    <li><strong>Ảnh sản phẩm:</strong> Tự động tải ảnh sản phẩm và chuyển đổi sang định dạng WebP</li>
+                                    <li><strong>Thông số kỹ thuật:</strong> Tự động trích xuất các thuộc tính hiển thị (Kích thước, Phương pháp đo lường, Phạm vi, v.v.)</li>
+                                    <li><strong>Xử lý đa luồng:</strong> Tải ảnh và phân tích các trang sản phẩm song song để tăng tốc</li>
+                                    <li><strong>Xuất Excel:</strong> Tạo báo cáo Excel với đầy đủ thông số kỹ thuật dạng HTML table</li>
+                                </ol>
+                                <div class="alert alert-warning mt-3">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                    <strong>Lưu ý:</strong> Bảng thông số kỹ thuật sẽ tự động đính kèm dòng "Copyright: Festo Việt Nam". Tất cả hình ảnh tải về sẽ được chuẩn hóa thành đuôi WebP.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="tab-pane fade" id="cognex-crawler" role="tabpanel" aria-labelledby="cognex-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu sản phẩm từ COGNEX (Thiên Trường PC)</h4>
+
+                        <div class="card mt-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Cào dữ liệu COGNEX</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('main.crawl_cognex') }}" method="post">
+                                    <div class="form-group">
+                                        <label for="category_urls">Nhập URL danh mục (<b>mỗi URL một dòng</b>):</label>
+                                        <textarea class="form-control" id="category_urls" name="category_urls" rows="5"
+                                            required></textarea>
+                                        <small class="form-text text-muted">Ví dụ:
+                                            https://thientruongpc.vn/cap-dieu-khien-cognex-dataman-barcode-scanner?</small>
+                                    </div>
+                                    <button type="submit" class="btn btn-primary mt-3">Bắt đầu cào dữ liệu</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Thông tin về chức năng -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Thông tin về chức năng</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Chức năng tự động cào sản phẩm từ thientruongpc.vn, chuyên trang Cognex:</p>
+                                <ol>
+                                    <li>Trích xuất Mã sản phẩm, Tên sản phẩm, Giá.</li>
+                                    <li>Lấy link ảnh đại diện, ảnh thông số kỹ thuật.</li>
+                                    <li>Chuyển đổi toàn bộ hình ảnh tải về sang định dạng WebP.</li>
+                                    <li>Tự động đóng gói báo cáo Excel và ảnh thành file Zip.</li>
+                                </ol>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab cào dữ liệu từ IFM -->
+                <div class="tab-pane fade" id="ifm-crawler" role="tabpanel" aria-labelledby="ifm-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu sản phẩm từ IFM (ifm.com)</h4>
+
+                        <div class="card mt-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Cào dữ liệu IFM</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('main.crawl_ifm') }}" method="post">
+                                    <div class="form-group">
+                                        <label for="ifm_category_urls">Nhập URL danh mục IFM (<b>mỗi URL một
+                                                dòng</b>):</label>
+                                        <textarea class="form-control" id="ifm_category_urls" name="category_urls"
+                                            rows="5" required></textarea>
+                                        <small class="form-text text-muted">Ví dụ:
+                                            https://www.ifm.com/us/en/category/200_010_010<br>
+                                            https://www.ifm.com/us/en/category/050_010_010</small>
+                                    </div>
+
+                                    <!-- Tùy chọn nâng cao -->
+                                    <div class="form-row mt-3">
+                                        <div class="form-group col-md-6">
+                                            <label for="ifm_max_workers">Số luồng tối đa:</label>
+                                            <select class="form-control" id="ifm_max_workers" name="max_workers">
+                                                <option value="5">5 luồng (máy yếu)</option>
+                                                <option value="10" selected>10 luồng (mặc định)</option>
+                                                <option value="15">15 luồng (máy tốt)</option>
+                                                <option value="20">20 luồng (máy mạnh)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Nhiều luồng hơn tăng tốc xử lý nhưng yêu
+                                                cầu máy tính mạnh hơn</small>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary mt-3">Bắt đầu cào dữ liệu</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Thông tin về chức năng -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Thông tin về chức năng</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Chức năng này tự động cào dữ liệu sản phẩm từ website IFM (ifm.com) với các tính
+                                    năng:</p>
+                                <ol>
+                                    <li><strong>Nhập URL danh mục:</strong> Nhập trực tiếp link danh mục sản phẩm từ
+                                        ifm.com</li>
+                                    <li><strong>Tự động duyệt series:</strong> Trích xuất tất cả series trong danh mục
+                                        được nhập</li>
+                                    <li><strong>Mã sản phẩm:</strong> Trích xuất từ thẻ
+                                        <code>h2[data-test="product-id"]</code></li>
+                                    <li><strong>Tên sản phẩm:</strong> Kết hợp danh mục + mã sản phẩm</li>
+                                    <li><strong>Ảnh sản phẩm:</strong> Tải và chuyển đổi sang định dạng WebP</li>
+                                    <li><strong>Thông số kỹ thuật:</strong> Trích xuất từ bảng datasheet của IFM</li>
+                                    <li><strong>Xử lý bất đồng bộ:</strong> Dùng aiohttp + asyncio tốc độ cao</li>
+                                    <li><strong>Xuất Excel:</strong> Tạo báo cáo Excel với đầy đủ thông tin sản phẩm
+                                    </li>
+                                </ol>
+                                <div class="alert alert-warning mt-3">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                    <strong>Lưu ý:</strong> URL danh mục phải là URL của ifm.com, ví dụ:
+                                    <code>https://www.ifm.com/us/en/category/200_010_010</code>. Tất cả ảnh sẽ được
+                                    chuyển đổi sang định dạng WebP để tối ưu dung lượng.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab cào dữ liệu từ SUNJE -->
+                <div class="tab-pane fade" id="sunje-crawler" role="tabpanel" aria-labelledby="sunje-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu sản phẩm từ SUNJE (sunstat.com)</h4>
+
+                        <div class="card mt-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Cào dữ liệu SUNJE</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('main.crawl_sunje') }}" method="post">
+                                    <div class="form-group">
+                                        <label for="category_url">Nhập URL danh mục:</label>
+                                        <input type="url" class="form-control" id="category_url" name="category_url"
+                                            placeholder="https://sunstat.com/business-area/electrostatic-solution/"
+                                            required>
+                                        <small class="form-text text-muted">Ví dụ:
+                                            https://sunstat.com/business-area/electrostatic-solution/</small>
+                                    </div>
+
+                                    <!-- Thêm tùy chọn nâng cao -->
+                                    <div class="form-row">
+                                        <div class="form-group col-md-6">
+                                            <label for="sunje_max_workers">Số luồng tối đa:</label>
+                                            <select class="form-control" id="sunje_max_workers" name="max_workers">
+                                                <option value="4">4 luồng (máy yếu)</option>
+                                                <option value="8" selected>8 luồng (mặc định)</option>
+                                                <option value="12">12 luồng (máy tốt)</option>
+                                                <option value="16">16 luồng (máy mạnh)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Nhiều luồng hơn tăng tốc xử lý nhưng yêu
+                                                cầu máy tính mạnh hơn</small>
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <label for="sunje_max_retries">Số lần thử lại tối đa:</label>
+                                            <select class="form-control" id="sunje_max_retries" name="max_retries">
+                                                <option value="1">1 lần (nhanh nhất)</option>
+                                                <option value="3" selected>3 lần (mặc định)</option>
+                                                <option value="5">5 lần (chính xác cao)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Nhiều lần thử lại nếu mạng không ổn
+                                                định</small>
+                                        </div>
+                                    </div>
+
+                                    <!-- Tùy chọn dịch thông số kỹ thuật -->
+                                    <div class="form-group mt-3">
+                                        <div class="form-check">
+                                            <input class="form-check-input" type="checkbox" id="translate_specs"
+                                                name="translate_specs" value="true">
+                                            <label class="form-check-label" for="translate_specs">
+                                                <strong>Dịch thông số kỹ thuật sang tiếng Việt</strong> (sử dụng Google
+                                                Translate API)
+                                            </label>
+                                        </div>
+                                        <small class="form-text text-muted">
+                                            <i class="bi bi-info-circle"></i>
+                                            Tùy chọn này sẽ dịch tất cả thông số kỹ thuật từ tiếng Anh sang tiếng Việt.
+                                            Cần cài đặt thư viện googletrans:
+                                            <code>pip install googletrans==4.0.0rc1</code>
+                                        </small>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary">Bắt đầu cào dữ liệu</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Thông tin về chức năng -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Thông tin về chức năng</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Chức năng này tự động cào dữ liệu sản phẩm từ website SUNJE (sunstat.com) với các
+                                    tính
+                                    năng:</p>
+                                <ol>
+                                    <li><strong>Tên sản phẩm:</strong> Kết hợp mã sản phẩm + danh mục (ví dụ:
+                                        "SXF-5010-C Optical")</li>
+                                    <li><strong>Mã sản phẩm:</strong> Trích xuất từ h1.elementor-heading-title (ví dụ:
+                                        "SXF-5010-C")</li>
+                                    <li><strong>Danh mục:</strong> Trích xuất từ div.filter-categories với class "act"
+                                        (ví dụ: "Optical")</li>
+                                    <li><strong>Ảnh sản phẩm:</strong> Tải và chuyển đổi sang định dạng WebP từ img có
+                                        src chứa wp-content/uploads</li>
+                                    <li><strong>Thông số kỹ thuật:</strong> Trích xuất từ bảng tablepress và chuyển đổi
+                                        sang HTML table</li>
+                                    <li><strong>Xử lý đa luồng:</strong> Tăng tốc độ cào dữ liệu với nhiều luồng song
+                                        song</li>
+                                    <li><strong>Xuất Excel:</strong> Tạo báo cáo Excel với thông số kỹ thuật dạng HTML
+                                        table</li>
+                                </ol>
+                                <div class="alert alert-warning mt-3">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                    <strong>Lưu ý:</strong> Mỗi bảng thông số kỹ thuật sẽ tự động thêm dòng "Copyright:
+                                    Haiphongtech.vn" ở cuối. Tất cả ảnh sẽ được chuyển đổi sang định dạng WebP để tối ưu
+                                    dung lượng.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab cào dữ liệu từ Panasonic -->
+                <div class="tab-pane fade" id="panasonic-crawler" role="tabpanel"
+                    aria-labelledby="panasonic-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu sản phẩm từ Panasonic Industry</h4>
+
+                        <div class="card mt-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Cào dữ liệu Panasonic</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('main.crawl_panasonic') }}" method="post">
+                                    <div class="form-group">
+                                        <label for="panasonic_category_urls">Nhập URL search (<b>mỗi URL một
+                                                dòng</b>):</label>
+                                        <textarea class="form-control" id="panasonic_category_urls" name="category_urls"
+                                            rows="5" required></textarea>
+                                        <small class="form-text text-muted">Ví dụ:
+                                            https://industry.panasonic.com/ap/en/products/motor/fa-motor/ac-servo/spec-search-motor<br>
+                                            hoặc<br>
+                                            https://industry.panasonic.com/ap/en/products/motor/fa-motor/ac-servo/spec-search-driver</small>
+                                    </div>
+
+                                    <!-- Thêm tùy chọn nâng cao -->
+                                    <div class="form-row">
+                                        <div class="form-group col-md-6">
+                                            <label for="panasonic_max_workers">Số luồng tối đa:</label>
+                                            <select class="form-control" id="panasonic_max_workers" name="max_workers">
+                                                <option value="4">4 luồng (máy yếu)</option>
+                                                <option value="8" selected>8 luồng (mặc định)</option>
+                                                <option value="12">12 luồng (máy tốt)</option>
+                                                <option value="16">16 luồng (máy mạnh)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Nhiều luồng hơn tăng tốc xử lý nhưng yêu
+                                                cầu máy tính mạnh hơn</small>
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <label for="panasonic_max_retries">Số lần thử lại tối đa:</label>
+                                            <select class="form-control" id="panasonic_max_retries" name="max_retries">
+                                                <option value="1">1 lần (nhanh nhất)</option>
+                                                <option value="3" selected>3 lần (mặc định)</option>
+                                                <option value="5">5 lần (chính xác cao)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Nhiều lần thử lại nếu mạng không ổn
+                                                định</small>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary">Bắt đầu cào dữ liệu</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Thêm phần cào Catalog -->
+                        <div class="card mt-4 border-info">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0"><i class="bi bi-file-earmark-pdf"></i> Cào Catalog Panasonic</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('main.crawl_panasonic_catalog') }}" method="post">
+                                    <div class="form-group">
+                                        <label for="panasonic_catalog_urls">Nhập URL danh mục (<b>mỗi URL một dòng</b>):</label>
+                                        <textarea class="form-control" id="panasonic_catalog_urls" name="category_urls"
+                                            rows="5" required placeholder="https://industry.panasonic.com/global/en/products/fasys/sensor/fiber"></textarea>
+                                        <small class="form-text text-muted">
+                                            Bot sẽ quét toàn bộ link catalog có sẵn ở link danh mục, tự động điền form và tải về.
+                                        </small>
+                                    </div>
+                                    <button type="submit" class="btn btn-info text-white mt-3">
+                                        <i class="bi bi-download"></i> Bắt đầu tải Catalog
+                                    </button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Thông tin về chức năng -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Thông tin về chức năng</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Chức năng này tự động cào dữ liệu sản phẩm từ website Panasonic Industry
+                                    (industry.panasonic.com) với các tính
+                                    năng:</p>
+                                <ol>
+                                    <li><strong>Nhập URL search trực tiếp:</strong> Người dùng nhập URL search
+                                        (spec-search-motor hoặc spec-search-driver)</li>
+                                    <li><strong>Quét bảng sản phẩm:</strong> Tự động quét toàn bộ sản phẩm trong bảng
+                                        search result</li>
+                                    <li><strong>Xử lý phân trang:</strong> Tự động quét tất cả trang trong search result
+                                    </li>
+                                    <li><strong>Mã sản phẩm:</strong> Trích xuất từ bảng thông tin (Part Number)</li>
+                                    <li><strong>Ảnh sản phẩm:</strong> Tải và chuyển đổi sang định dạng WebP từ figure
+                                        img</li>
+                                    <li><strong>Xử lý đa luồng:</strong> Tăng tốc độ cào dữ liệu với nhiều luồng song
+                                        song</li>
+                                    <li><strong>Xuất Excel:</strong> Tạo báo cáo Excel với thông tin sản phẩm</li>
+                                    <li><strong>Tên file ảnh:</strong> Tự động đặt tên file ảnh theo mã sản phẩm (ví dụ:
+                                        MDMF102L1C5.webp)</li>
+                                </ol>
+                                <div class="alert alert-warning mt-3">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                    <strong>Lưu ý:</strong> Tất cả ảnh sẽ được chuyển đổi sang định dạng WebP để tối ưu
+                                    dung lượng. Tên file ảnh sẽ được đặt theo mã sản phẩm.
+                                </div>
+                                <div class="alert alert-info mt-3">
+                                    <i class="bi bi-info-circle-fill me-2"></i>
+                                    <strong>Quy trình cào dữ liệu:</strong><br>
+                                    1. Nhập URL search (ví dụ: spec-search-motor hoặc spec-search-driver)<br>
+                                    2. Bot quét toàn bộ sản phẩm trong bảng search result (có xử lý phân trang)<br>
+                                    3. Vào từng trang sản phẩm → Lấy mã sản phẩm và ảnh<br>
+                                    4. Tải ảnh và chuyển đổi sang WebP với tên file = mã sản phẩm
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab cào dữ liệu từ LS Automation -->
+                <div class="tab-pane fade" id="lsa-crawler" role="tabpanel" aria-labelledby="lsa-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu sản phẩm từ LS Automation</h4>
+
+                        <div class="card mt-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Cào dữ liệu LS Automation</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('main.crawl_lsa') }}" method="post">
+                                    <div class="form-group">
+                                        <label for="lsa_category_urls">Nhập URL danh mục hoặc sản phẩm (<b>mỗi URL một
+                                                dòng</b>):</label>
+                                        <textarea class="form-control" id="lsa_category_urls" name="category_urls"
+                                            rows="5" required></textarea>
+                                        <small class="form-text text-muted">Ví dụ:
+                                            https://ls-automation.com/danh-muc-san-pham/thiet-bi-tu-dong-hoa/bien-tan/</small>
+                                    </div>
+
+                                    <!-- Thêm tùy chọn nâng cao -->
+                                    <div class="form-row">
+                                        <div class="form-group col-md-6">
+                                            <label for="lsa_max_workers">Số luồng tối đa:</label>
+                                            <select class="form-control" id="lsa_max_workers" name="max_workers">
+                                                <option value="4">4 luồng (máy yếu)</option>
+                                                <option value="8" selected>8 luồng (mặc định)</option>
+                                                <option value="12">12 luồng (máy tốt)</option>
+                                                <option value="16">16 luồng (máy mạnh)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Nhiều luồng hơn tăng tốc xử lý nhưng yêu
+                                                cầu máy tính mạnh hơn</small>
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <label for="lsa_max_retries">Số lần thử lại tối đa:</label>
+                                            <select class="form-control" id="lsa_max_retries" name="max_retries">
+                                                <option value="1">1 lần (nhanh nhất)</option>
+                                                <option value="3" selected>3 lần (mặc định)</option>
+                                                <option value="5">5 lần (chính xác cao)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Nhiều lần thử lại nếu mạng không ổn
+                                                định</small>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary">Bắt đầu cào dữ liệu</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Thông tin về chức năng -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Thông tin về chức năng</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Chức năng này tự động cào dữ liệu sản phẩm từ website LS Automation với các tính
+                                    năng:</p>
+                                <ol>
+                                    <li><strong>Tên sản phẩm:</strong> Trích xuất từ thẻ h3.brxe-heading#brxe-risnbl
+                                    </li>
+                                    <li><strong>Mã sản phẩm:</strong> Trích xuất từ div.motasanphamngan trong phần Model
+                                        (P/N)
+                                    </li>
+                                    <li><strong>Ảnh sản phẩm:</strong> Tải và chuyển đổi sang định dạng WebP từ
+                                        img.brxe-image
+                                    </li>
+                                    <li><strong>Thông số kỹ thuật:</strong> Trích xuất từ bảng trong div.motasanpham
+                                    </li>
+                                    <li><strong>Xử lý đa luồng:</strong> Tăng tốc độ cào dữ liệu với nhiều luồng song
+                                        song</li>
+                                    <li><strong>Xuất Excel:</strong> Tạo báo cáo Excel với thông số kỹ thuật dạng HTML
+                                        table</li>
+                                    <li><strong>Xử lý phân trang:</strong> Tự động quét tất cả các trang trong danh mục
+                                    </li>
+                                </ol>
+                                <div class="alert alert-warning mt-3">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                    <strong>Lưu ý:</strong> Mỗi bảng thông số kỹ thuật sẽ tự động thêm dòng "Copyright:
+                                    Haiphongtech.vn" ở cuối. Tất cả ảnh sẽ được chuyển đổi sang định dạng WebP để tối ưu
+                                    dung lượng.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab cào dữ liệu từ WOONYOUNG -->
+                <div class="tab-pane fade" id="woonyoung-crawler" role="tabpanel"
+                    aria-labelledby="woonyoung-crawler-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3">Cào dữ liệu sản phẩm từ WOONYOUNG</h4>
+
+                        <div class="card mt-3">
+                            <div class="card-header bg-primary text-white">
+                                <h5 class="mb-0">Cào dữ liệu WOONYOUNG</h5>
+                            </div>
+                            <div class="card-body">
+                                <form action="{{ url_for('main.crawl_woonyoung') }}" method="post">
+                                    <div class="form-group">
+                                        <label for="category_url">Nhập URL danh mục:</label>
+                                        <textarea class="form-control" id="category_url" name="category_url" rows="5"
+                                            placeholder="Mỗi dòng một URL danh mục WOONYOUNG (s0201_list.php)...\nhttps://woonyoung.com/eng/page/s0201_list.php?...\nhttps://woonyoung.com/eng/page/s0201_list.php?..."
+                                            required></textarea>
+                                        <small class="form-text text-muted">
+                                            <strong>Quan trọng:</strong> Phải là URL trang DANH MỤC (s0201_list.php),
+                                            không phải trang chi tiết sản phẩm!<br>
+                                            • Hỗ trợ nhiều danh mục: dán mỗi URL trên một dòng hoặc ngăn cách bằng dấu
+                                            phẩy.<br>
+                                            Ví dụ:
+                                            https://woonyoung.com/eng/page/s0201_list.php?catetopcode=1337583451&ocatecode=1337583451&gcatecode=1535699731...
+                                        </small>
+                                    </div>
+
+                                    <!-- Thêm tùy chọn nâng cao -->
+                                    <div class="form-row">
+                                        <div class="form-group col-md-6">
+                                            <label for="max_workers_woonyoung">Số luồng tối đa:</label>
+                                            <select class="form-control" id="max_workers_woonyoung" name="max_workers">
+                                                <option value="4">4 luồng (máy yếu)</option>
+                                                <option value="8" selected>8 luồng (mặc định)</option>
+                                                <option value="12">12 luồng (máy tốt)</option>
+                                                <option value="16">16 luồng (máy mạnh)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Nhiều luồng hơn tăng tốc xử lý nhưng yêu
+                                                cầu máy tính mạnh hơn</small>
+                                        </div>
+                                        <div class="form-group col-md-6">
+                                            <label for="max_retries_woonyoung">Số lần thử lại tối đa:</label>
+                                            <select class="form-control" id="max_retries_woonyoung" name="max_retries">
+                                                <option value="1">1 lần (nhanh nhất)</option>
+                                                <option value="3" selected>3 lần (mặc định)</option>
+                                                <option value="5">5 lần (chính xác cao)</option>
+                                            </select>
+                                            <small class="form-text text-muted">Nhiều lần thử lại nếu mạng không ổn
+                                                định</small>
+                                        </div>
+                                    </div>
+
+                                    <button type="submit" class="btn btn-primary">Bắt đầu cào dữ liệu</button>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Thông tin về chức năng -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-info text-white">
+                                <h5 class="mb-0">Thông tin về chức năng</h5>
+                            </div>
+                            <div class="card-body">
+                                <p>Chức năng này tự động cào dữ liệu sản phẩm từ website WOONYOUNG với các tính
+                                    năng:</p>
+                                <ol>
+                                    <li><strong>Tên series:</strong> Trích xuất từ cột thứ 2 trong bảng danh sách</li>
+                                    <li><strong>Link chi tiết:</strong> Trích xuất từ link trong cột đầu tiên hoặc cột
+                                        tên series</li>
+                                    <li><strong>Mã sản phẩm:</strong> Tách và trích xuất từ cột thứ 3, tự động phân tách
+                                        các mã sản phẩm</li>
+                                    <li><strong>Ảnh sản phẩm:</strong> Trích xuất URL ảnh từ cột đầu tiên</li>
+                                    <li><strong>Xuất Excel:</strong> Tạo báo cáo Excel với Series Name, Product Link,
+                                        Product Codes, và Image URL</li>
+                                </ol>
+                                <div class="alert alert-warning mt-3">
+                                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                                    <strong>Lưu ý:</strong> Bước 1 này chỉ lấy mã sản phẩm và link. Các bước tiếp theo
+                                    sẽ xử lý chi tiết từng sản phẩm.
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab gộp file Excel -->
+                <div class="tab-pane fade {% if active_tab == 'merge-excel-tab' %}show active{% endif %}"
+                    id="merge-excel" role="tabpanel" aria-labelledby="merge-excel-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3"><i class="bi bi-file-spreadsheet"></i> Gộp nhiều file Excel thành một file tổng
+                        </h4>
+
+                        <div class="data-format">
+                            <h5>Thông tin về chức năng</h5>
+                            <p>Chức năng này cho phép bạn gộp nhiều file Excel thành một file tổng hợp với các tính
+                                năng:</p>
+                            <ol>
+                                <li>Tự động nhận diện và mapping các cột tương đồng</li>
+                                <li>Gộp tất cả dữ liệu vào một sheet duy nhất</li>
+                                <li>Thêm thông tin truy vết nguồn dữ liệu</li>
+                                <li>Format đẹp mắt với màu sắc và border</li>
+                                <li>Xử lý các file có cấu trúc cột khác nhau</li>
+                                <li>Tự động điều chỉnh độ rộng cột</li>
+                            </ol>
+                            <div class="alert alert-info mt-3">
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                <strong>Lưu ý:</strong> Cần ít nhất 2 file Excel để thực hiện gộp. Hỗ trợ định dạng
+                                .xlsx và .xls
+                            </div>
+                        </div>
+
+                        <form action="{{ url_for('main.merge_excel') }}" method="post" enctype="multipart/form-data">
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <i class="bi bi-upload"></i> Chọn các file Excel cần gộp
+                                </div>
+                                <div class="card-body">
+                                    <div class="mb-3">
+                                        <label for="excel_files" class="form-label">
+                                            <i class="bi bi-file-earmark-spreadsheet"></i> File Excel (.xlsx, .xls)
+                                        </label>
+                                        <input type="file" class="form-control" id="excel_files" name="excel_files"
+                                            multiple accept=".xlsx,.xls" required>
+                                        <div class="form-text">
+                                            <i class="bi bi-info-circle"></i>
+                                            Chọn nhiều file bằng cách giữ Ctrl (Windows) hoặc Cmd (Mac) khi click
+                                        </div>
+                                    </div>
+
+                                    <!-- Preview files được chọn -->
+                                    <div id="selected-files-preview" class="mt-3" style="display: none;">
+                                        <h6>Files đã chọn:</h6>
+                                        <ul id="files-list" class="list-group">
+                                        </ul>
+                                    </div>
+
+                                    <div class="mt-3">
+                                        <button type="submit" class="btn btn-primary" id="merge-submit-btn">
+                                            <i class="bi bi-arrow-clockwise"></i> Gộp file Excel
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </form>
+
+                        <!-- Khu vực hiển thị kết quả -->
+                        {% if session.merge_excel_download_url %}
+                        <div class="alert alert-success mt-4" id="excel-merge-result">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-2">
+                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                        Gộp file Excel thành công!
+                                    </h6>
+
+                                    {% if session.merge_excel_result_info %}
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <p class="mb-1"><strong>Thống kê:</strong></p>
+                                            <ul class="small mb-2">
+                                                <li>Tổng files Excel: {{ session.merge_excel_result_info.total_files }}
+                                                </li>
+                                                <li>Dòng dữ liệu: {{ session.merge_excel_result_info.total_rows }}</li>
+                                                <li>Kết quả: 1 sheet chứa toàn bộ dữ liệu
+                                                </li>
+                                            </ul>
+
+                                            {% if session.merge_excel_result_info.product_analysis %}
+                                            <p class="mb-1"><strong>Phân tích mã sản phẩm:</strong></p>
+                                            <ul class="small mb-2 text-info">
+                                                <li>Mã trùng lặp: {{
+                                                    session.merge_excel_result_info.product_analysis.total_duplicates }}
+                                                </li>
+                                                <li>Mã unique: {{
+                                                    session.merge_excel_result_info.product_analysis.total_unique }}
+                                                </li>
+                                                {% if
+                                                session.merge_excel_result_info.product_analysis.product_code_column %}
+                                                <li>Cột phân tích: {{
+                                                    session.merge_excel_result_info.product_analysis.product_code_column
+                                                    }}</li>
+                                                {% endif %}
+                                            </ul>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p class="mb-1"><strong>File kết quả:</strong></p>
+                                            <p class="small text-muted">{{
+                                                session.merge_excel_result_info.output_filename }}</p>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="d-flex gap-2">
+                                        <a href="{{ session.merge_excel_download_url }}" class="btn btn-success">
+                                            <i class="bi bi-download"></i> Tải xuống file đã gộp
+                                        </a>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            onclick="clearExcelMergeResult()">
+                                            <i class="bi bi-x"></i> Đóng
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Hướng dẫn sử dụng -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-light">
+                                <h6><i class="bi bi-question-circle"></i> Hướng dẫn sử dụng</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Chuẩn bị file đầu vào:</h6>
+                                        <ul class="small">
+                                            <li>Các file Excel (.xlsx hoặc .xls)</li>
+                                            <li>Ít nhất 2 file để thực hiện gộp</li>
+                                            <li>File có thể có cấu trúc cột khác nhau</li>
+                                            <li>Dữ liệu nên có header ở dòng đầu tiên</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Kết quả sẽ có:</h6>
+                                        <ul class="small">
+                                            <li>Một sheet duy nhất chứa tất cả dữ liệu</li>
+                                            <li>Cột "Nguồn File" để truy vết nguồn gốc</li>
+                                            <li>Cột "Phân Loại Mã SP" (Trùng lặp/Unique)</li>
+                                            <li>Cột "Nguồn Trùng Lặp" cho mã sản phẩm trùng</li>
+                                            <li>Thống kê chi tiết về mã sản phẩm trùng/unique</li>
+                                            <li>Format đẹp với màu sắc và border</li>
+                                        </ul>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab gộp file Excel từ folder/ZIP -->
+                <div class="tab-pane fade {% if active_tab == 'merge-excel-folder-tab' %}show active{% endif %}"
+                    id="merge-excel-folder" role="tabpanel" aria-labelledby="merge-excel-folder-tab">
+                    <div class="form-container">
+                        <h4 class="mb-3"><i class="bi bi-folder"></i> Gộp file Excel từ Folder hoặc ZIP</h4>
+
+                        <div class="data-format">
+                            <h5>Thông tin về chức năng</h5>
+                            <p>Chức năng này cho phép bạn gộp file Excel từ cấu trúc folder phức tạp:</p>
+                            <ol>
+                                <li><strong>Upload ZIP:</strong> Nén folder thành ZIP và upload</li>
+                                <li><strong>Upload Folder:</strong> Chọn trực tiếp folder (Chrome, Edge, Firefox hiện
+                                    đại)</li>
+                                <li>Tự động tìm tất cả file Excel trong các thư mục con</li>
+                                <li>Gộp tất cả dữ liệu vào một sheet duy nhất</li>
+                                <li>Thêm thông tin truy vết đường dẫn folder gốc</li>
+                                <li>Giữ nguyên cấu trúc folder trong cột metadata</li>
+                            </ol>
+                            <div class="alert alert-info mt-3">
+                                <i class="bi bi-info-circle-fill me-2"></i>
+                                <strong>Lưu ý:</strong> Upload folder yêu cầu trình duyệt hiện đại. Nếu không hỗ trợ,
+                                hãy sử dụng tùy chọn ZIP.
+                            </div>
+                        </div>
+
+                        <!-- Tab con cho 2 phương thức upload -->
+                        <ul class="nav nav-pills mb-3" id="upload-method-tabs" role="tablist">
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link active" id="zip-upload-tab" data-bs-toggle="pill"
+                                    data-bs-target="#zip-upload" type="button" role="tab" aria-controls="zip-upload"
+                                    aria-selected="true">
+                                    <i class="bi bi-file-zip"></i> Upload ZIP File
+                                </button>
+                            </li>
+                            <li class="nav-item" role="presentation">
+                                <button class="nav-link" id="folder-upload-tab" data-bs-toggle="pill"
+                                    data-bs-target="#folder-upload" type="button" role="tab"
+                                    aria-controls="folder-upload" aria-selected="false">
+                                    <i class="bi bi-folder2-open"></i> Upload Folder
+                                </button>
+                            </li>
+                        </ul>
+
+                        <div class="tab-content" id="upload-method-content">
+                            <!-- ZIP Upload -->
+                            <div class="tab-pane fade show active" id="zip-upload" role="tabpanel"
+                                aria-labelledby="zip-upload-tab">
+                                <form action="{{ url_for('main.merge_excel_folder') }}" method="post"
+                                    enctype="multipart/form-data">
+                                    <input type="hidden" name="upload_type" value="zip">
+
+                                    <div class="card">
+                                        <div class="card-header bg-primary text-white">
+                                            <i class="bi bi-file-zip"></i> Chọn file ZIP chứa folder Excel
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="zip_file" class="form-label">
+                                                    <i class="bi bi-file-earmark-zip"></i> File ZIP (.zip)
+                                                </label>
+                                                <input type="file" class="form-control" id="zip_file" name="zip_file"
+                                                    accept=".zip" required>
+                                                <div class="form-text">
+                                                    <i class="bi bi-info-circle"></i>
+                                                    Nén folder chứa file Excel thành ZIP trước khi upload
+                                                </div>
+                                            </div>
+
+                                            <!-- Preview ZIP content -->
+                                            <div id="zip-preview" class="mt-3" style="display: none;">
+                                                <h6>File ZIP đã chọn:</h6>
+                                                <div class="alert alert-info">
+                                                    <span id="zip-info"></span>
+                                                </div>
+                                            </div>
+
+                                            <div class="mt-3">
+                                                <button type="submit" class="btn btn-primary" id="zip-submit-btn">
+                                                    <i class="bi bi-upload"></i> Gộp file từ ZIP
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+
+                            <!-- Folder Upload -->
+                            <div class="tab-pane fade" id="folder-upload" role="tabpanel"
+                                aria-labelledby="folder-upload-tab">
+                                <form action="{{ url_for('main.merge_excel_folder') }}" method="post"
+                                    enctype="multipart/form-data">
+                                    <input type="hidden" name="upload_type" value="folder">
+
+                                    <div class="card">
+                                        <div class="card-header bg-success text-white">
+                                            <i class="bi bi-folder2-open"></i> Chọn folder chứa file Excel
+                                        </div>
+                                        <div class="card-body">
+                                            <div class="mb-3">
+                                                <label for="folder_files" class="form-label">
+                                                    <i class="bi bi-folder"></i> Chọn Folder
+                                                </label>
+                                                <input type="file" class="form-control" id="folder_files"
+                                                    name="folder_files" webkitdirectory directory multiple required>
+                                                <div class="form-text">
+                                                    <i class="bi bi-info-circle"></i>
+                                                    Chọn folder chứa file Excel. Hỗ trợ cấu trúc thư mục con.
+                                                </div>
+                                            </div>
+
+                                            <!-- Preview folder structure -->
+                                            <div id="folder-preview" class="mt-3" style="display: none;">
+                                                <h6>Cấu trúc folder đã chọn:</h6>
+                                                <div id="folder-tree" class="border p-3 bg-light">
+                                                </div>
+                                                <div class="mt-2">
+                                                    <span id="folder-stats" class="badge bg-info"></span>
+                                                </div>
+                                            </div>
+
+                                            <div class="mt-3">
+                                                <button type="submit" class="btn btn-success" id="folder-submit-btn">
+                                                    <i class="bi bi-upload"></i> Gộp file từ Folder
+                                                </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </form>
+                            </div>
+                        </div>
+
+                        <!-- Khu vực hiển thị kết quả -->
+                        {% if session.merge_folder_download_url %}
+                        <div class="alert alert-success mt-4" id="folder-merge-result">
+                            <div class="d-flex justify-content-between align-items-start">
+                                <div>
+                                    <h6 class="mb-2">
+                                        <i class="bi bi-check-circle-fill text-success"></i>
+                                        Gộp file từ {{ session.merge_folder_result_info.source_type }} thành công!
+                                    </h6>
+
+                                    {% if session.merge_folder_result_info %}
+                                    <div class="row mb-3">
+                                        <div class="col-md-6">
+                                            <p class="mb-1"><strong>Thống kê:</strong></p>
+                                            <ul class="small mb-2">
+                                                <li>Tổng files Excel: {{ session.merge_folder_result_info.total_files }}
+                                                </li>
+                                                <li>Tổng folders: {{ session.merge_folder_result_info.total_folders }}
+                                                </li>
+                                                <li>Dòng dữ liệu: {{ session.merge_folder_result_info.total_rows }}</li>
+                                                <li>Kết quả: 1 sheet chứa toàn bộ dữ liệu
+                                                </li>
+                                            </ul>
+
+                                            {% if session.merge_folder_result_info.product_analysis %}
+                                            <p class="mb-1"><strong>Phân tích mã sản phẩm:</strong></p>
+                                            <ul class="small mb-2 text-info">
+                                                <li>Mã trùng lặp: {{
+                                                    session.merge_folder_result_info.product_analysis.total_duplicates
+                                                    }}</li>
+                                                <li>Mã unique: {{
+                                                    session.merge_folder_result_info.product_analysis.total_unique }}
+                                                </li>
+                                                {% if
+                                                session.merge_folder_result_info.product_analysis.product_code_column %}
+                                                <li>Cột phân tích: {{
+                                                    session.merge_folder_result_info.product_analysis.product_code_column
+                                                    }}</li>
+                                                {% endif %}
+                                            </ul>
+                                            {% endif %}
+                                        </div>
+                                        <div class="col-md-6">
+                                            <p class="mb-1"><strong>File kết quả:</strong></p>
+                                            <p class="small text-muted">{{
+                                                session.merge_folder_result_info.output_filename }}</p>
+                                        </div>
+                                    </div>
+                                    {% endif %}
+
+                                    <div class="d-flex gap-2">
+                                        <a href="{{ session.merge_folder_download_url }}" class="btn btn-success">
+                                            <i class="bi bi-download"></i> Tải xuống file đã gộp
+                                        </a>
+                                        <button type="button" class="btn btn-outline-secondary btn-sm"
+                                            onclick="clearFolderMergeResult()">
+                                            <i class="bi bi-x"></i> Đóng
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        {% endif %}
+
+                        <!-- Hướng dẫn chi tiết -->
+                        <div class="card mt-4">
+                            <div class="card-header bg-light">
+                                <h6><i class="bi bi-question-circle"></i> Hướng dẫn sử dụng</h6>
+                            </div>
+                            <div class="card-body">
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <h6>Chuẩn bị dữ liệu đầu vào:</h6>
+                                        <ul class="small">
+                                            <li><strong>ZIP:</strong> Nén folder chứa Excel thành ZIP</li>
+                                            <li><strong>Folder:</strong> Chọn trực tiếp folder (Chrome/Edge/Firefox)
+                                            </li>
+                                            <li>Folder có thể chứa nhiều subfolder</li>
+                                            <li>File Excel ở mọi cấp độ thư mục đều được tìm thấy</li>
+                                        </ul>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <h6>Kết quả sẽ có:</h6>
+                                        <ul class="small">
+                                            <li>Một sheet duy nhất chứa tất cả dữ liệu</li>
+                                            <li>Cột "Đường Dẫn Folder" để truy vết</li>
+                                            <li>Cột "Phân Loại Mã SP" (Trùng lặp/Unique)</li>
+                                            <li>Cột "Nguồn Trùng Lặp" cho mã sản phẩm trùng</li>
+                                            <li>Thống kê chi tiết mã sản phẩm và folder structure</li>
+                                            <li>Format đẹp với màu sắc và border</li>
+                                        </ul>
+                                    </div>
+                                </div>
+
+                                <div class="mt-3">
+                                    <h6>Ví dụ cấu trúc folder:</h6>
+                                    <pre class="bg-light p-2 small">
+My_Excel_Data/
+├── Quan_Ly/
+│   ├── nhan_vien.xlsx
+│   └── luong.xlsx
+├── Ban_Hang/
+│   ├── don_hang.xlsx
+│   └── khach_hang.xlsx
+└── san_pham.xlsx
+                                    </pre>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -2198,6 +3874,390 @@ Message: ${data.message}`;
                         alertDiv.remove();
                     }
                 }, 5000);
+            }
+
+            // JavaScript cho chức năng gộp Excel
+            document.addEventListener('DOMContentLoaded', function () {
+                const excelFilesInput = document.getElementById('excel_files');
+                const previewDiv = document.getElementById('selected-files-preview');
+                const filesList = document.getElementById('files-list');
+                const submitBtn = document.getElementById('merge-submit-btn');
+
+                if (excelFilesInput) {
+                    excelFilesInput.addEventListener('change', function () {
+                        const files = this.files;
+
+                        if (files.length === 0) {
+                            previewDiv.style.display = 'none';
+                            submitBtn.disabled = false;
+                            return;
+                        }
+
+                        // Hiển thị preview files
+                        filesList.innerHTML = '';
+
+                        for (let i = 0; i < files.length; i++) {
+                            const file = files[i];
+                            const fileSize = (file.size / 1024).toFixed(1); // KB
+
+                            const listItem = document.createElement('li');
+                            listItem.className = 'list-group-item d-flex justify-content-between align-items-center';
+
+                            // Kiểm tra định dạng file
+                            const isValidFormat = file.name.toLowerCase().endsWith('.xlsx') ||
+                                file.name.toLowerCase().endsWith('.xls');
+
+                            listItem.innerHTML = `
+                                <div>
+                                    <i class="bi ${isValidFormat ? 'bi-file-earmark-spreadsheet text-success' : 'bi-file-earmark-x text-danger'}"></i>
+                                    <span class="${isValidFormat ? '' : 'text-danger'}">${file.name}</span>
+                                    ${!isValidFormat ? '<small class="text-danger d-block">Định dạng không hỗ trợ</small>' : ''}
+                                </div>
+                                <span class="badge ${isValidFormat ? 'bg-primary' : 'bg-danger'}">${fileSize} KB</span>
+                            `;
+
+                            filesList.appendChild(listItem);
+                        }
+
+                        // Kiểm tra validation
+                        const validFiles = Array.from(files).filter(file =>
+                            file.name.toLowerCase().endsWith('.xlsx') ||
+                            file.name.toLowerCase().endsWith('.xls')
+                        );
+
+                        // Hiển thị thông báo validation
+                        if (validFiles.length < files.length) {
+                            const warningItem = document.createElement('li');
+                            warningItem.className = 'list-group-item list-group-item-warning';
+                            warningItem.innerHTML = `
+                                <i class="bi bi-exclamation-triangle"></i>
+                                <strong>Cảnh báo:</strong> ${files.length - validFiles.length} file không hỗ trợ sẽ bị bỏ qua
+                            `;
+                            filesList.appendChild(warningItem);
+                        }
+
+                        if (validFiles.length < 2) {
+                            const errorItem = document.createElement('li');
+                            errorItem.className = 'list-group-item list-group-item-danger';
+                            errorItem.innerHTML = `
+                                <i class="bi bi-x-circle"></i>
+                                <strong>Lỗi:</strong> Cần ít nhất 2 file Excel hợp lệ để thực hiện gộp
+                            `;
+                            filesList.appendChild(errorItem);
+                            submitBtn.disabled = true;
+                        } else {
+                            submitBtn.disabled = false;
+
+                            // Thêm thông báo thành công
+                            const successItem = document.createElement('li');
+                            successItem.className = 'list-group-item list-group-item-success';
+                            successItem.innerHTML = `
+                                <i class="bi bi-check-circle"></i>
+                                <strong>Sẵn sàng:</strong> ${validFiles.length} file Excel hợp lệ, có thể tiến hành gộp
+                            `;
+                            filesList.appendChild(successItem);
+                        }
+
+                        previewDiv.style.display = 'block';
+                    });
+                }
+
+                // Xử lý form submit
+                const mergeForm = document.querySelector('form[action*="merge-excel"]');
+                if (mergeForm) {
+                    mergeForm.addEventListener('submit', function (e) {
+                        const files = excelFilesInput.files;
+                        const validFiles = Array.from(files).filter(file =>
+                            file.name.toLowerCase().endsWith('.xlsx') ||
+                            file.name.toLowerCase().endsWith('.xls')
+                        );
+
+                        if (validFiles.length < 2) {
+                            e.preventDefault();
+                            alert('Vui lòng chọn ít nhất 2 file Excel hợp lệ!');
+                            return false;
+                        }
+
+                        // Hiển thị loading state
+                        submitBtn.disabled = true;
+                        submitBtn.innerHTML = '<i class="bi bi-arrow-clockwise spin"></i> Đang gộp file...';
+
+                        // Hiển thị progress container
+                        const progressContainer = document.getElementById('progress-container');
+                        if (progressContainer) {
+                            progressContainer.classList.remove('d-none');
+                        }
+                    });
+                }
+            });
+
+            // JavaScript cho chức năng gộp Excel từ folder/ZIP
+            const zipFileInput = document.getElementById('zip_file');
+            const folderFilesInput = document.getElementById('folder_files');
+            const zipPreview = document.getElementById('zip-preview');
+            const folderPreview = document.getElementById('folder-preview');
+
+            // Xử lý ZIP file upload
+            if (zipFileInput) {
+                zipFileInput.addEventListener('change', function () {
+                    const file = this.files[0];
+
+                    if (file) {
+                        const fileSize = (file.size / 1024 / 1024).toFixed(2); // MB
+                        const zipInfo = document.getElementById('zip-info');
+
+                        zipInfo.innerHTML = `
+                            <strong>${file.name}</strong><br>
+                            <small>Kích thước: ${fileSize} MB</small><br>
+                            <small>Loại: ${file.type || 'application/zip'}</small>
+                        `;
+
+                        zipPreview.style.display = 'block';
+                    } else {
+                        zipPreview.style.display = 'none';
+                    }
+                });
+            }
+
+            // Xử lý folder upload
+            if (folderFilesInput) {
+                folderFilesInput.addEventListener('change', function () {
+                    const files = this.files;
+
+                    if (files.length > 0) {
+                        // Phân tích cấu trúc folder
+                        const folderStructure = analyzeFolderStructure(files);
+
+                        // Hiển thị folder tree
+                        displayFolderTree(folderStructure);
+
+                        // Hiển thị thống kê
+                        const excelFiles = Array.from(files).filter(file =>
+                            file.name.toLowerCase().endsWith('.xlsx') ||
+                            file.name.toLowerCase().endsWith('.xls')
+                        );
+
+                        const folderStats = document.getElementById('folder-stats');
+                        folderStats.textContent = `${files.length} files tổng, ${excelFiles.length} files Excel, ${Object.keys(folderStructure).length} folders`;
+
+                        folderPreview.style.display = 'block';
+                    } else {
+                        folderPreview.style.display = 'none';
+                    }
+                });
+            }
+
+            // Function phân tích cấu trúc folder
+            function analyzeFolderStructure(files) {
+                const structure = {};
+
+                Array.from(files).forEach(file => {
+                    const pathParts = file.webkitRelativePath.split('/');
+                    let currentLevel = structure;
+
+                    // Build nested structure
+                    for (let i = 0; i < pathParts.length - 1; i++) {
+                        const folderName = pathParts[i];
+                        if (!currentLevel[folderName]) {
+                            currentLevel[folderName] = {
+                                type: 'folder',
+                                children: {},
+                                files: []
+                            };
+                        }
+                        currentLevel = currentLevel[folderName].children;
+                    }
+
+                    // Add file to the final folder
+                    const fileName = pathParts[pathParts.length - 1];
+                    const parentFolder = pathParts.slice(0, -1).join('/');
+
+                    if (!currentLevel[fileName]) {
+                        currentLevel[fileName] = {
+                            type: 'file',
+                            size: file.size,
+                            isExcel: fileName.toLowerCase().endsWith('.xlsx') || fileName.toLowerCase().endsWith('.xls')
+                        };
+                    }
+                });
+
+                return structure;
+            }
+
+            // Function hiển thị folder tree
+            function displayFolderTree(structure) {
+                const folderTree = document.getElementById('folder-tree');
+                folderTree.innerHTML = buildTreeHTML(structure, 0);
+            }
+
+            // Function build HTML cho tree
+            function buildTreeHTML(structure, level) {
+                let html = '';
+                const indent = '  '.repeat(level);
+
+                Object.keys(structure).forEach(name => {
+                    const item = structure[name];
+
+                    if (item.type === 'folder') {
+                        html += `${indent}<div class="folder-item">`;
+                        html += `<i class="bi bi-folder text-warning"></i> <strong>${name}/</strong>`;
+                        html += `</div>`;
+
+                        if (Object.keys(item.children).length > 0) {
+                            html += buildTreeHTML(item.children, level + 1);
+                        }
+                    } else {
+                        const fileIcon = item.isExcel ?
+                            '<i class="bi bi-file-earmark-spreadsheet text-success"></i>' :
+                            '<i class="bi bi-file-earmark text-muted"></i>';
+
+                        const fileClass = item.isExcel ? 'text-success' : 'text-muted';
+                        const fileSize = (item.size / 1024).toFixed(1);
+
+                        html += `${indent}<div class="file-item ${fileClass}">`;
+                        html += `${fileIcon} ${name} <small>(${fileSize} KB)</small>`;
+                        html += `</div>`;
+                    }
+                });
+
+                return html;
+            }
+
+            // Form validation và loading states
+            const zipForm = document.querySelector('form[action*="merge-excel-folder"]');
+            const folderForm = document.querySelector('form[action*="merge-excel-folder"]:nth-of-type(2)');
+
+            if (zipForm) {
+                zipForm.addEventListener('submit', function (e) {
+                    const zipFile = zipFileInput.files[0];
+
+                    if (!zipFile) {
+                        e.preventDefault();
+                        alert('Vui lòng chọn file ZIP!');
+                        return false;
+                    }
+
+                    if (!zipFile.name.toLowerCase().endsWith('.zip')) {
+                        e.preventDefault();
+                        alert('File phải có định dạng .zip!');
+                        return false;
+                    }
+
+                    // Loading state
+                    const submitBtn = document.getElementById('zip-submit-btn');
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="bi bi-upload spin"></i> Đang xử lý ZIP...';
+
+                    // Show progress
+                    const progressContainer = document.getElementById('progress-container');
+                    if (progressContainer) {
+                        progressContainer.classList.remove('d-none');
+                    }
+                });
+            }
+
+            if (folderForm) {
+                folderForm.addEventListener('submit', function (e) {
+                    const files = folderFilesInput.files;
+
+                    if (!files || files.length === 0) {
+                        e.preventDefault();
+                        alert('Vui lòng chọn folder chứa file Excel!');
+                        return false;
+                    }
+
+                    // Kiểm tra có ít nhất 1 file Excel
+                    const excelFiles = Array.from(files).filter(file =>
+                        file.name.toLowerCase().endsWith('.xlsx') ||
+                        file.name.toLowerCase().endsWith('.xls')
+                    );
+
+                    if (excelFiles.length === 0) {
+                        e.preventDefault();
+                        alert('Folder phải chứa ít nhất 1 file Excel (.xlsx hoặc .xls)!');
+                        return false;
+                    }
+
+                    // Loading state
+                    const submitBtn = document.getElementById('folder-submit-btn');
+                    submitBtn.disabled = true;
+                    submitBtn.innerHTML = '<i class="bi bi-upload spin"></i> Đang xử lý folder...';
+
+                    // Show progress
+                    const progressContainer = document.getElementById('progress-container');
+                    if (progressContainer) {
+                        progressContainer.classList.remove('d-none');
+                    }
+                });
+            }
+
+            // CSS animation cho spinner
+            const style = document.createElement('style');
+            style.textContent = `
+                .spin {
+                    animation: spin 1s linear infinite;
+                }
+                @keyframes spin {
+                    from { transform: rotate(0deg); }
+                    to { transform: rotate(360deg); }
+                }
+                .folder-item {
+                    margin: 2px 0;
+                    font-weight: 500;
+                }
+                .file-item {
+                    margin: 1px 0;
+                    font-size: 0.9em;
+                }
+            `;
+            document.head.appendChild(style);
+
+            // Function để clear kết quả gộp folder
+            function clearFolderMergeResult() {
+                fetch('/clear-merge-folder-result', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            document.getElementById('folder-merge-result').style.display = 'none';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        // Ẩn kết quả ngay cả khi có lỗi
+                        document.getElementById('folder-merge-result').style.display = 'none';
+                    });
+            }
+
+            // Function để clear kết quả gộp Excel thường
+            function clearExcelMergeResult() {
+                fetch('/clear-merge-excel-result', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            const resultDiv = document.getElementById('excel-merge-result');
+                            if (resultDiv) {
+                                resultDiv.style.display = 'none';
+                            }
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error:', error);
+                        // Ẩn kết quả ngay cả khi có lỗi
+                        const resultDiv = document.getElementById('excel-merge-result');
+                        if (resultDiv) {
+                            resultDiv.style.display = 'none';
+                        }
+                    });
             }
         </script>
 </body>

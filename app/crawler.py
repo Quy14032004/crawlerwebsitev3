@@ -1,3 +1,7 @@
+from bs4 import Tag
+from PIL import TiffImagePlugin
+from PIL import TiffImagePlugin
+from app.utils import create_zip_from_folder
 import requests
 from bs4 import BeautifulSoup
 import pandas as pd
@@ -33,30 +37,219 @@ HEADERS = {
     'Referer': 'https://google.com'
 }
 
-def get_html_content(url, headers=None):
+def get_html_content(url, headers=None, max_retries=3, session=None):
     """
-    Tải nội dung HTML từ URL
+    Tải nội dung HTML từ URL (dùng cloudscraper để bypass Cloudflare/WAF)
     
     Args:
         url (str): URL cần tải nội dung
         headers (dict, optional): Headers cho request
+        max_retries (int): Số lần thử lại tối đa
+        session (Session, optional): Session object để tái sử dụng kết nối
         
     Returns:
         str: Nội dung HTML hoặc None nếu có lỗi
     """
-    if headers is None:
-        headers = HEADERS
-    
+    import random
+    import time
+    import requests
     try:
-        # Tắt cảnh báo SSL không an toàn
-        urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-        
-        response = requests.get(url, headers=headers, timeout=30, verify=False)
-        response.raise_for_status()
-        return response.text
+        import cloudscraper
+        has_cloudscraper = True
+    except ImportError:
+        has_cloudscraper = False
+
+    # Danh sách User-Agents phong phú hơn
+    user_agents = [
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:124.0) Gecko/20100101 Firefox/124.0',
+        'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Edge/122.0.2365.92'
+    ]
+
+    if headers is None:
+        headers = HEADERS.copy()
+        headers['User-Agent'] = random.choice(user_agents)
+
+    # Hàm hỗ trợ tải proxy từ file
+    def load_proxies():
+        proxy_file = os.path.join(os.path.dirname(__file__), 'proxies.txt')
+        proxies_list = []
+        if os.path.exists(proxy_file):
+            try:
+                with open(proxy_file, 'r', encoding='utf-8') as f:
+                    for line in f:
+                        line = line.strip()
+                        if line and not line.startswith('#'):
+                            if not line.startswith('http'):
+                                line = f"http://{line}"
+                            proxies_list.append({'http': line, 'https': line})
+            except Exception as e:
+                print(f"[WARN] Lỗi khi đọc file proxy: {e}")
+        else:
+            # Tạo file mẫu nếu chưa có
+            try:
+                with open(proxy_file, 'w', encoding='utf-8') as f:
+                    f.write("# Nhập danh sách proxy vào đây (mỗi proxy 1 dòng)\n")
+                    f.write("# Định dạng: http://ip:port hoặc ip:port\n")
+                    f.write("# Ví dụ: http://user:pass@123.45.67.89:8080\n")
+            except:
+                pass
+        return proxies_list
+
+    proxies_list = load_proxies()
+    
+    # Khởi tạo scraper/session nếu cần
+    scraper = None
+    if has_cloudscraper:
+        if session and isinstance(session, cloudscraper.CloudScraper):
+            scraper = session
+        else:
+            scraper = cloudscraper.create_scraper(
+                browser={
+                    'browser': 'chrome',
+                    'platform': 'windows',
+                    'mobile': False
+                }
+            )
+    
+    for retry in range(max_retries):
+        try:
+            # Vô hiệu hóa cảnh báo SSL không an toàn
+            urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+            
+            # Random proxy nếu có
+            current_proxy = random.choice(proxies_list) if proxies_list else None
+            
+            start_time = time.time()
+            
+            # Thực hiện request
+            if has_cloudscraper:
+                if current_proxy:
+                    scraper.proxies.update(current_proxy)
+                response = scraper.get(url, headers=headers, timeout=60)
+            else:
+                req_session = session if session else requests
+                response = req_session.get(url, headers=headers, proxies=current_proxy, timeout=60, verify=False)
+            
+            duration = time.time() - start_time
+            print(f"[INFO] Request tới {url} thành công sau {duration:.2f}s")
+
+            # Xử lý các mã lỗi đặc biệt
+            if response.status_code == 429:
+                wait_time = 60 + retry * 60
+                print(f"[WARN] Too Many Requests (429) cho {url}. Nghỉ {wait_time}s...")
+                time.sleep(wait_time)
+                continue
+            elif response.status_code == 403:
+                wait_time = 30 + retry * 30
+                print(f"[WARN] Forbidden (403) - Có thể bị chặn IP. Nghỉ {wait_time}s...")
+                time.sleep(wait_time)
+                # Thử xoay User-Agent nếu bị 403
+                headers['User-Agent'] = random.choice(user_agents)
+                continue
+
+            response.raise_for_status()
+            
+            # Random delay sau khi thành công
+            time.sleep(random.uniform(1.5, 3.0))
+            
+            return response.text
+            
+        except requests.exceptions.Timeout as e:
+            wait_time = 20 + retry * 20 # Tăng thời gian chờ timeout
+            print(f"[WARN] Timeout khi tải {url} (Thử lại {retry+1}/{max_retries}). Nghỉ {wait_time}s...")
+            time.sleep(wait_time)
+        except Exception as e:
+            if retry < max_retries - 1:
+                wait_time = 5 + retry * 5
+                print(f"[WARN] Lỗi khi tải {url} (Thử lại {retry+1}/{max_retries}): {e}. Nghỉ {wait_time}s...")
+                time.sleep(wait_time)
+            else:
+                print(f"[ERR] Thất bại hoàn toàn sau {max_retries} lần thử cho {url}: {e}")
+                return None
+
+
+
+
+def get_html_via_wayback(url):
+    """
+    Lấy nội dung HTML của sản phẩm gián tiếp qua Wayback Machine (Archive.org)
+    """
+    import urllib.parse
+    api_url = f"https://archive.org/wayback/available?url={urllib.parse.quote(url, safe='')}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'
+    }
+    try:
+        response = requests.get(api_url, headers=headers, timeout=10)
+        if response.status_code == 200:
+            data = response.json()
+            snapshots = data.get("archived_snapshots", {})
+            if "closest" in snapshots and snapshots["closest"].get("available"):
+                wayback_url = snapshots["closest"]["url"]
+                timestamp = snapshots["closest"]["timestamp"]
+                print(f"[Wayback] Tìm thấy bản ghi lưu ngày {timestamp}: {wayback_url}")
+                
+                # Thêm /id_ vào cuối timestamp để Wayback trả về HTML sạch
+                clean_wayback_url = wayback_url.replace(f"/web/{timestamp}/", f"/web/{timestamp}id_/")
+                time.sleep(1)
+                html_response = requests.get(clean_wayback_url, headers=headers, timeout=15)
+                if html_response.status_code == 200:
+                    return html_response.text
     except Exception as e:
-        print(f"Lỗi khi tải nội dung từ {url}: {e}")
-        return None
+        print(f"[Lỗi Wayback] {str(e)}")
+    return None
+
+def get_html_via_google_cache(url):
+    """
+    Lấy HTML của trang web thông qua Google Cache
+    """
+    import urllib.parse
+    encoded_url = urllib.parse.quote(url, safe='')
+    cache_url = f"https://webcache.googleusercontent.com/search?q=cache:{encoded_url}"
+    headers = {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+        'Referer': 'https://www.google.com/'
+    }
+    try:
+        response = requests.get(cache_url, headers=headers, timeout=15)
+        if response.status_code == 200:
+            print(f"[Google Cache] Tải trang thành công từ Google Cache!")
+            return response.text
+    except Exception as e:
+        print(f"[Lỗi Google Cache] {str(e)}")
+    return None
+
+def get_html_content_robust(url, session=None, use_google_cache_only=False):
+    """
+    Tải nội dung HTML bằng cách thử trực tiếp trước, sau đó thử qua Wayback Machine và Google Cache
+    """
+    if use_google_cache_only:
+        print(f"[INFO] Bắt buộc dùng Google Cache cho: {url}")
+        html = get_html_via_google_cache(url)
+        return html  # Trả về luôn, không fall through xuống trực tiếp nữa
+            
+    # 1. Thử cào trực tiếp BAA.vn (dùng cloudscraper bypass Cloudflare)
+    html = get_html_content(url, session=session)
+    if html and "403 - Forbidden" not in html and "429 Too Many Requests" not in html:
+        return html
+        
+    # 2. Nếu cào trực tiếp thất bại, thử qua Wayback Machine
+    print(f"[WARN] Cào trực tiếp thất bại hoặc bị chặn, thử cào qua Wayback Machine cho: {url}")
+    html = get_html_via_wayback(url)
+    if html:
+        return html
+        
+    # 3. Nếu Wayback thất bại, thử qua Google Cache
+    print(f"[WARN] Wayback thất bại, thử cào qua Google Cache cho: {url}")
+    html = get_html_via_google_cache(url)
+    return html
+
+
+
 
 def is_product_url(url):
     """Kiểm tra xem URL có phải là URL sản phẩm hợp lệ không"""
@@ -368,7 +561,7 @@ def extract_category_links(category_urls):
     print(f"Tổng cộng tìm thấy {len(all_product_urls)} liên kết sản phẩm độc nhất")
     return all_product_urls
 
-def extract_product_info(url, required_fields=None, index=1):
+def extract_product_info(url, required_fields=None, index=1, use_google_cache_only=False):
     """
     Trích xuất thông tin sản phẩm từ URL BAA.vn với selector thực tế
     """
@@ -379,9 +572,9 @@ def extract_product_info(url, required_fields=None, index=1):
     current_retry = 0
     while current_retry < max_retries:
         try:
-            response = requests.get(url, headers=HEADERS, timeout=15)
-            response.raise_for_status()
-            html_content = response.text
+            html_content = get_html_content_robust(url, use_google_cache_only=use_google_cache_only)
+            if not html_content:
+                raise ValueError("Không thể tải nội dung HTML từ BAA.vn")
             soup = BeautifulSoup(html_content, 'html.parser')
             product_info = {
                 'STT': index,
@@ -769,7 +962,7 @@ def extract_product_urls(url):
         
         try:
             print(f"Đang xử lý URL danh mục: {page_url}")
-            html = get_html_content(page_url)
+            html = get_html_content_robust(page_url)
             if not html:
                 print(f"Không thể tải nội dung từ {page_url}")
                 return [], []
@@ -2556,6 +2749,27 @@ def get_random_headers():
     }
     return headers
 
+def create_image_report(report_data, output_file):
+    """Tạo báo cáo Excel về việc tải ảnh"""
+    try:
+        # Tạo DataFrame từ dữ liệu báo cáo
+        df = pd.DataFrame(report_data)
+        
+        # Lưu vào file Excel
+        with pd.ExcelWriter(output_file, engine='openpyxl') as writer:
+            df.to_excel(writer, sheet_name='Báo cáo tải ảnh', index=False)
+            
+            # Tự động điều chỉnh chiều rộng các cột
+            worksheet = writer.sheets['Báo cáo tải ảnh']
+            for i, col in enumerate(df.columns):
+                max_length = max(df[col].astype(str).map(len).max(), len(col)) + 2
+                worksheet.column_dimensions[worksheet.cell(row=1, column=i+1).column_letter].width = max_length
+                
+        return True
+    except Exception as e:
+        print(f"Lỗi khi tạo báo cáo: {str(e)}")
+        return False
+
 def download_baa_product_images(url_file, output_folder):
     """Tải ảnh sản phẩm từ BAA.vn dựa trên file URL sử dụng đa luồng"""
     results = []
@@ -3271,6 +3485,7 @@ def extract_baa_image_url_from_html(html_content):
             img_url = img_element['src']
             if img_url:
                 # Chuyển đổi URL sang kích thước lớn
+                # pyrefly: ignore [unknown-name]
                 full_url = convert_to_large_image_url(img_url)
                 image_urls.append(full_url)
                 print(f"Đã tìm thấy ảnh chính: {full_url}")

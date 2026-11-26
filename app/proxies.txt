@@ -1,0 +1,3 @@
+# Nhập danh sách proxy vào đây (mỗi proxy 1 dòng)
+# Định dạng: http://ip:port hoặc ip:port
+# Ví dụ: http://user:pass@123.45.67.89:8080

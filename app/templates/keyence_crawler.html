@@ -287,6 +287,13 @@ https://www.keyence.com.vn/products/sensor/photoelectric/
 https://www.keyence.com.vn/products/sensor/proximity/"></textarea>
             </div>
 
+            <div class="mt-3 form-check">
+                <input class="form-check-input" type="checkbox" id="onlyCatalog" name="onlyCatalog">
+                <label class="form-check-label" for="onlyCatalog">
+                    <strong>Chỉ tải Catalog PDF lên Google Drive (Không cào thông tin SP)</strong>
+                </label>
+            </div>
+
             <div class="mt-3">
                 <button id="btnStartCrawl" class="btn btn-custom">
                     <i class="fas fa-play"></i> Bắt Đầu Cào Dữ Liệu
@@ -451,6 +458,9 @@ https://www.keyence.com.vn/products/sensor/proximity/"></textarea>
                 return;
             }
 
+            // Get only catalog flag
+            const onlyCatalog = document.getElementById('onlyCatalog').checked;
+
             // Start crawling
             isRunning = true;
             startTimer();
@@ -464,7 +474,8 @@ https://www.keyence.com.vn/products/sensor/proximity/"></textarea>
                     'Content-Type': 'application/json',
                 },
                 body: JSON.stringify({
-                    category_urls: urls
+                    category_urls: urls,
+                    only_catalog: onlyCatalog
                 })
             })
                 .then(response => response.json())

@@ -1,0 +1,594 @@
+{% extends "base.html" %}
+
+{% block title %}Cào dữ liệu Mitsubishi Electric{% endblock %}
+
+{% block content %}
+<div class="container">
+    <div class="header">
+        <h1>🤖 Cào dữ liệu Mitsubishi Electric</h1>
+        <p class="subtitle">Nhập URL danh mục để cào tất cả sản phẩm (bao gồm Compatible Products, Service Parts)</p>
+    </div>
+
+    <div class="form-container">
+        <form id="mitsubishi-form" method="POST" action="{{ url_for('main.crawl_mitsubishi') }}">
+            <div class="form-group">
+                <label for="category_urls">Danh sách URL danh mục (mỗi dòng 1 URL):</label>
+                <textarea id="category_urls" name="category_urls" rows="8" placeholder="https://emea.mitsubishielectric.com/fa/products/drv/servo/mr_j5/servo-amplifier
+https://emea.mitsubishielectric.com/fa/products/drv/servo/mr_j5/rotary-servo-motor
+https://emea.mitsubishielectric.com/fa/products/drv/servo/mr_jet/servo-amplifier" required></textarea>
+                <small class="form-text">Nhập URL danh mục Mitsubishi Electric, mỗi URL trên một dòng</small>
+            </div>
+
+            <div class="form-group">
+                <label for="max_workers">Số luồng xử lý:</label>
+                <select id="max_workers" name="max_workers">
+                    <option value="3">3 luồng (chậm, ổn định)</option>
+                    <option value="6" selected>6 luồng (cân bằng)</option>
+                    <option value="10">10 luồng (nhanh)</option>
+                </select>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" id="submit-btn" class="btn btn-primary">
+                    <span class="btn-text">Bắt đầu cào dữ liệu</span>
+                    <span class="btn-loading" style="display: none;">
+                        <span class="spinner"></span>
+                        Đang xử lý...
+                    </span>
+                </button>
+                <button type="button" id="clear-btn" class="btn btn-secondary">Xóa tất cả</button>
+            </div>
+        </form>
+    </div>
+
+    <!-- Progress Section -->
+    <div id="progress-section" class="progress-section" style="display: none;">
+        <div class="progress-header">
+            <h3>Tiến độ cào dữ liệu</h3>
+            <div class="progress-stats">
+                <span id="progress-text">Đang khởi tạo...</span>
+                <span id="progress-percent">0%</span>
+            </div>
+        </div>
+
+        <div class="progress-bar-container">
+            <div class="progress-bar">
+                <div id="progress-fill" class="progress-fill"></div>
+            </div>
+        </div>
+
+        <div id="progress-details" class="progress-details">
+            <div class="progress-log" id="progress-log">
+                <!-- Progress messages will appear here -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Results Section -->
+    <div id="results-section" class="results-section" style="display: none;">
+        <div class="results-header">
+            <h3>Kết quả cào dữ liệu</h3>
+        </div>
+
+        <div class="results-content">
+            <div class="result-stats" id="result-stats">
+                <!-- Statistics will be displayed here -->
+            </div>
+
+            <div class="result-actions">
+                <a id="download-link" href="#" class="btn btn-success" style="display: none;">
+                    <span class="icon">📥</span>
+                    Tải xuống Excel
+                </a>
+                <button id="new-crawl-btn" class="btn btn-primary">
+                    <span class="icon">🔄</span>
+                    Cào dữ liệu mới
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Instructions -->
+    <div class="instructions">
+        <h3>Hướng dẫn sử dụng</h3>
+        <div class="instruction-content">
+            <div class="instruction-item">
+                <span class="icon">📝</span>
+                <div>
+                    <strong>Nhập URL danh mục:</strong> Mỗi URL trên một dòng. Hệ thống sẽ tự động phát hiện phân trang
+                    và cào tất cả sản phẩm.
+                </div>
+            </div>
+            <div class="instruction-item">
+                <span class="icon">🔍</span>
+                <div>
+                    <strong>Dữ liệu được cào:</strong> Mã sản phẩm, tên sản phẩm, ảnh (chuyển sang WebP), thông số kỹ
+                    thuật từ tab TECHNICAL INFORMATION.
+                </div>
+            </div>
+            <div class="instruction-item">
+                <span class="icon">📊</span>
+                <div>
+                    <strong>Bao gồm:</strong> Sản phẩm chính + Compatible Products + Service Parts từ tất cả các tab.
+                </div>
+            </div>
+            <div class="instruction-item">
+                <span class="icon">⚡</span>
+                <div>
+                    <strong>Hiệu suất:</strong> Sử dụng đa luồng để tăng tốc độ cào dữ liệu. Có thể mất vài phút tùy
+                    thuộc vào số lượng sản phẩm.
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .container {
+        max-width: 1200px;
+        margin: 0 auto;
+        padding: 20px;
+    }
+
+    .header {
+        text-align: center;
+        margin-bottom: 30px;
+    }
+
+    .header h1 {
+        color: #2c3e50;
+        margin-bottom: 10px;
+        font-size: 2.5em;
+    }
+
+    .subtitle {
+        color: #7f8c8d;
+        font-size: 1.1em;
+    }
+
+    .form-container {
+        background: #fff;
+        border-radius: 10px;
+        padding: 30px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+    }
+
+    .form-group {
+        margin-bottom: 20px;
+    }
+
+    .form-group label {
+        display: block;
+        margin-bottom: 8px;
+        font-weight: 600;
+        color: #2c3e50;
+    }
+
+    .form-group textarea {
+        width: 100%;
+        padding: 12px;
+        border: 2px solid #e1e8ed;
+        border-radius: 6px;
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        resize: vertical;
+        min-height: 200px;
+    }
+
+    .form-group textarea:focus {
+        outline: none;
+        border-color: #3498db;
+        box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+    }
+
+    .form-group select {
+        width: 200px;
+        padding: 8px 12px;
+        border: 2px solid #e1e8ed;
+        border-radius: 6px;
+        background: white;
+    }
+
+    .form-text {
+        color: #7f8c8d;
+        font-size: 0.9em;
+        margin-top: 5px;
+        display: block;
+    }
+
+    .form-actions {
+        display: flex;
+        gap: 15px;
+        margin-top: 25px;
+    }
+
+    .btn {
+        padding: 12px 24px;
+        border: none;
+        border-radius: 6px;
+        font-size: 16px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        text-decoration: none;
+    }
+
+    .btn-primary {
+        background: #3498db;
+        color: white;
+    }
+
+    .btn-primary:hover {
+        background: #2980b9;
+        transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+        background: #95a5a6;
+        color: white;
+    }
+
+    .btn-secondary:hover {
+        background: #7f8c8d;
+    }
+
+    .btn-success {
+        background: #27ae60;
+        color: white;
+    }
+
+    .btn-success:hover {
+        background: #229954;
+    }
+
+    .btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        transform: none;
+    }
+
+    .btn-loading {
+        display: none;
+    }
+
+    .spinner {
+        width: 16px;
+        height: 16px;
+        border: 2px solid #ffffff;
+        border-top: 2px solid transparent;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+        0% {
+            transform: rotate(0deg);
+        }
+
+        100% {
+            transform: rotate(360deg);
+        }
+    }
+
+    .progress-section {
+        background: #fff;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+    }
+
+    .progress-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+    }
+
+    .progress-header h3 {
+        color: #2c3e50;
+        margin: 0;
+    }
+
+    .progress-stats {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+    }
+
+    .progress-bar-container {
+        margin-bottom: 20px;
+    }
+
+    .progress-bar {
+        width: 100%;
+        height: 20px;
+        background: #ecf0f1;
+        border-radius: 10px;
+        overflow: hidden;
+    }
+
+    .progress-fill {
+        height: 100%;
+        background: linear-gradient(90deg, #3498db, #2ecc71);
+        width: 0%;
+        transition: width 0.3s ease;
+    }
+
+    .progress-details {
+        max-height: 200px;
+        overflow-y: auto;
+    }
+
+    .progress-log {
+        font-family: 'Courier New', monospace;
+        font-size: 14px;
+        line-height: 1.4;
+    }
+
+    .log-entry {
+        padding: 5px 0;
+        border-bottom: 1px solid #ecf0f1;
+    }
+
+    .log-entry:last-child {
+        border-bottom: none;
+    }
+
+    .results-section {
+        background: #fff;
+        border-radius: 10px;
+        padding: 25px;
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        margin-bottom: 30px;
+    }
+
+    .results-header h3 {
+        color: #2c3e50;
+        margin: 0 0 20px 0;
+    }
+
+    .result-stats {
+        background: #f8f9fa;
+        padding: 20px;
+        border-radius: 6px;
+        margin-bottom: 20px;
+    }
+
+    .stat-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #e9ecef;
+    }
+
+    .stat-item:last-child {
+        border-bottom: none;
+    }
+
+    .stat-label {
+        font-weight: 600;
+        color: #495057;
+    }
+
+    .stat-value {
+        color: #28a745;
+        font-weight: 600;
+    }
+
+    .result-actions {
+        display: flex;
+        gap: 15px;
+    }
+
+    .instructions {
+        background: #f8f9fa;
+        border-radius: 10px;
+        padding: 25px;
+    }
+
+    .instructions h3 {
+        color: #2c3e50;
+        margin: 0 0 20px 0;
+    }
+
+    .instruction-content {
+        display: grid;
+        gap: 15px;
+    }
+
+    .instruction-item {
+        display: flex;
+        gap: 15px;
+        align-items: flex-start;
+    }
+
+    .instruction-item .icon {
+        font-size: 1.5em;
+        flex-shrink: 0;
+        margin-top: 2px;
+    }
+
+    .instruction-item div {
+        flex: 1;
+    }
+
+    .instruction-item strong {
+        color: #2c3e50;
+    }
+
+    @media (max-width: 768px) {
+        .container {
+            padding: 15px;
+        }
+
+        .form-actions {
+            flex-direction: column;
+        }
+
+        .btn {
+            width: 100%;
+            justify-content: center;
+        }
+
+        .progress-header {
+            flex-direction: column;
+            gap: 10px;
+            align-items: flex-start;
+        }
+
+        .result-actions {
+            flex-direction: column;
+        }
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function () {
+        const form = document.getElementById('mitsubishi-form');
+        const submitBtn = document.getElementById('submit-btn');
+        const clearBtn = document.getElementById('clear-btn');
+        const progressSection = document.getElementById('progress-section');
+        const resultsSection = document.getElementById('results-section');
+        const progressFill = document.getElementById('progress-fill');
+        const progressText = document.getElementById('progress-text');
+        const progressPercent = document.getElementById('progress-percent');
+        const progressLog = document.getElementById('progress-log');
+        const resultStats = document.getElementById('result-stats');
+        const downloadLink = document.getElementById('download-link');
+        const newCrawlBtn = document.getElementById('new-crawl-btn');
+
+        // Clear button
+        clearBtn.addEventListener('click', function () {
+            document.getElementById('category_urls').value = '';
+        });
+
+        // New crawl button
+        newCrawlBtn.addEventListener('click', function () {
+            progressSection.style.display = 'none';
+            resultsSection.style.display = 'none';
+            form.reset();
+        });
+
+        // Form submission
+        form.addEventListener('submit', function (e) {
+            e.preventDefault();
+
+            const categoryUrls = document.getElementById('category_urls').value.trim();
+            if (!categoryUrls) {
+                alert('Vui lòng nhập ít nhất một URL danh mục!');
+                return;
+            }
+
+            // Show loading state
+            submitBtn.disabled = true;
+            submitBtn.querySelector('.btn-text').style.display = 'none';
+            submitBtn.querySelector('.btn-loading').style.display = 'flex';
+
+            // Show progress section
+            progressSection.style.display = 'block';
+            resultsSection.style.display = 'none';
+
+            // Clear previous progress
+            progressFill.style.width = '0%';
+            progressPercent.textContent = '0%';
+            progressLog.innerHTML = '';
+            resultStats.innerHTML = '';
+
+            // Submit form
+            const formData = new FormData(form);
+
+            fetch(form.action, {
+                method: 'POST',
+                body: formData
+            })
+                .then(response => response.json())
+                .then(data => {
+                    if (data.success) {
+                        showResults(data);
+                    } else {
+                        showError(data.message || 'Có lỗi xảy ra khi cào dữ liệu');
+                    }
+                })
+                .catch(error => {
+                    console.error('Error:', error);
+                    showError('Lỗi kết nối: ' + error.message);
+                })
+                .finally(() => {
+                    // Reset button state
+                    submitBtn.disabled = false;
+                    submitBtn.querySelector('.btn-text').style.display = 'inline';
+                    submitBtn.querySelector('.btn-loading').style.display = 'none';
+                });
+        });
+
+        // Socket.IO for real-time progress updates
+        if (typeof io !== 'undefined') {
+            const socket = io();
+
+            socket.on('progress_update', function (data) {
+                updateProgress(data.percent, data.message);
+            });
+        }
+
+        function updateProgress(percent, message) {
+            progressFill.style.width = percent + '%';
+            progressPercent.textContent = percent + '%';
+
+            const logEntry = document.createElement('div');
+            logEntry.className = 'log-entry';
+            logEntry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            progressLog.appendChild(logEntry);
+            progressLog.scrollTop = progressLog.scrollHeight;
+        }
+
+        function showResults(data) {
+            progressSection.style.display = 'none';
+            resultsSection.style.display = 'block';
+
+            // Show statistics
+            resultStats.innerHTML = `
+            <div class="stat-item">
+                <span class="stat-label">Tổng số sản phẩm:</span>
+                <span class="stat-value">${data.total_products || 0}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Thư mục kết quả:</span>
+                <span class="stat-value">${data.output_folder || 'N/A'}</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">File Excel:</span>
+                <span class="stat-value">${data.excel_file ? 'Đã tạo' : 'Chưa tạo'}</span>
+            </div>
+        `;
+
+            // Show download link if Excel file exists
+            if (data.excel_file) {
+                const folderName = data.output_folder.split('/').pop();
+                downloadLink.href = `/download_mitsubishi/${folderName}`;
+                downloadLink.style.display = 'inline-flex';
+            }
+        }
+
+        function showError(message) {
+            progressSection.style.display = 'none';
+            resultsSection.style.display = 'block';
+
+            resultStats.innerHTML = `
+            <div class="stat-item">
+                <span class="stat-label">Trạng thái:</span>
+                <span class="stat-value" style="color: #dc3545;">Lỗi</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-label">Thông báo:</span>
+                <span class="stat-value" style="color: #dc3545;">${message}</span>
+            </div>
+        `;
+        }
+    });
+</script>
+{% endblock %}

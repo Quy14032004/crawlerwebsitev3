@@ -16,6 +16,12 @@
                         <h5>Đã cào thành công {{ products_count }} sản phẩm từ BAA Qlight!</h5>
                         <p>Dữ liệu đã được xử lý với tính năng đa luồng, chuyển đổi ảnh WebP và phân loại theo series.
                         </p>
+                        {% elif crawler_type == "WOONYOUNG" %}
+                        <h5>Đã cào thành công {{ products_count }} sản phẩm từ WOONYOUNG!</h5>
+                        <p>File ZIP đã sẵn sàng để tải xuống với ảnh WebP và Excel.</p>
+                        {% elif crawler_type == "Cơ Điện Hải Âu" %}
+                        <h5>Đã cào thành công {{ products_count }} sản phẩm từ Cơ Điện Hải Âu!</h5>
+                        <p>File ZIP đã sẵn sàng để tải xuống.</p>
                         {% else %}
                         <h5>Đã cào thành công {{ products_count }} sản phẩm từ BAA.vn!</h5>
                         <p>File ZIP đã sẵn sàng để tải xuống.</p>
@@ -63,13 +69,64 @@
                         </div>
 
                         <div class="col-md-6">
+                            {% if multi_results %}
+                            <div class="card">
+                                <div class="card-header bg-primary text-white">
+                                    <h5 class="mb-0">Kết quả theo danh mục</h5>
+                                </div>
+                                <div class="card-body">
+                                    <div class="table-responsive">
+                                        <table class="table table-bordered table-hover align-middle">
+                                            <thead class="table-light">
+                                                <tr>
+                                                    <th>#</th>
+                                                    <th>URL danh mục</th>
+                                                    <th>Sản phẩm</th>
+                                                    <th>ZIP</th>
+                                                    <th>Trạng thái</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                {% for item in multi_results %}
+                                                <tr>
+                                                    <td>{{ loop.index }}</td>
+                                                    <td style="max-width:360px; word-break:break-all;">
+                                                        <small>{{ item.category_url }}</small>
+                                                    </td>
+                                                    <td>{{ item.products|length }}</td>
+                                                    <td>
+                                                        {% if item.zip_file %}
+                                                            {% set zip_name = item.zip_file.split('/')[-1].split('\\')[-1] %}
+                                                            <a class="btn btn-sm btn-success" href="{{ url_for('main.download_woonyoung_result', filename=zip_name) }}">
+                                                                <i class="fas fa-download"></i> {{ zip_name }}
+                                                            </a>
+                                                        {% else %}
+                                                            <span class="text-muted">(không có)</span>
+                                                        {% endif %}
+                                                    </td>
+                                                    <td>
+                                                        {% if item.success %}
+                                                            <span class="badge bg-success">Thành công</span>
+                                                        {% else %}
+                                                            <span class="badge bg-danger">Thất bại</span>
+                                                            {% if item.error %}<div class="small text-muted">{{ item.error }}</div>{% endif %}
+                                                        {% endif %}
+                                                    </td>
+                                                </tr>
+                                                {% endfor %}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            </div>
+                            {% else %}
                             <div class="card">
                                 <div class="card-header bg-primary text-white">
                                     <h5 class="mb-0">Tải xuống kết quả</h5>
                                 </div>
                                 <div class="card-body text-center">
                                     <p><strong>Tên file:</strong> {{ zip_filename }}</p>
-                                    <a href="{{ download_url }}" class="btn btn-success btn-lg">
+                                    <a href="{{ download_link }}" class="btn btn-success btn-lg">
                                         <i class="fas fa-download"></i> Tải xuống file ZIP
                                     </a>
                                     <p class="mt-2 text-muted">
@@ -77,6 +134,7 @@
                                     </p>
                                 </div>
                             </div>
+                            {% endif %}
                         </div>
                     </div>
 

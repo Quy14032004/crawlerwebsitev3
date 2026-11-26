@@ -1,10 +1,19 @@
 from flask import Flask
 import os
-from flask_socketio import SocketIO
-# Import HoplongCrawler routes
 
-# Tạo đối tượng SocketIO
-socketio = SocketIO()
+"""
+Khởi tạo SocketIO theo cách an toàn với các phiên bản Python mới (3.12/3.13):
+- Nếu socketio/engineio không hỗ trợ async_mode tương ứng -> fallback về None
+- Khi đó ứng dụng vẫn chạy được với Flask thuần, chỉ mất realtime progress bar.
+"""
+try:
+    from flask_socketio import SocketIO  # type: ignore
+    _SocketIOClass = SocketIO
+except Exception:  # Nếu không import được flask_socketio
+    _SocketIOClass = None
+
+# Nếu có SocketIO, tạo instance; nếu không thì để None và fallback về Flask thuần
+socketio = _SocketIOClass(async_mode="threading") if _SocketIOClass else None
 
 def create_app():
     app = Flask(__name__)
@@ -31,8 +40,15 @@ def create_app():
     from app.routes import main_bp
     app.register_blueprint(main_bp)
     
-    # Khởi tạo SocketIO với ứng dụng Flask
-    socketio.init_app(app, cors_allowed_origins="*")
+    # Khởi tạo SocketIO với ứng dụng Flask (nếu khả dụng)
+    if socketio is not None:
+        try:
+            socketio.init_app(app, cors_allowed_origins="*")
+        except Exception as e:
+            # Nếu SocketIO không khởi tạo được (thường do async_mode / engineio không tương thích),
+            # ghi log và fallback dùng Flask thuần.
+            print(f"[WARN] Không thể khởi tạo SocketIO, sẽ chạy Flask thuần. Lý do: {e}")
+            globals()["socketio"] = None
 
     # (Đã gỡ bỏ) Đăng ký HoplongCrawler routes
     return app 

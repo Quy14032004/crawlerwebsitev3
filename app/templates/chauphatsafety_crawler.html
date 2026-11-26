@@ -1,0 +1,426 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chauphatsafety Crawler - CrawlBot</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.7.2/font/bootstrap-icons.css" rel="stylesheet">
+    <style>
+        .url-input-container {
+            margin-bottom: 1.5rem;
+        }
+
+        .url-input-group {
+            margin-bottom: 0.5rem;
+        }
+
+        .url-input-group .form-control {
+            border-radius: 0.375rem 0 0 0.375rem;
+        }
+
+        .url-input-group .btn-remove {
+            border-radius: 0 0.375rem 0.375rem 0;
+        }
+
+        .progress-container {
+            display: none;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .log-container {
+            max-height: 400px;
+            overflow-y: auto;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .log-entry {
+            margin-bottom: 0.5rem;
+            padding: 0.25rem 0;
+            font-size: 0.9rem;
+        }
+
+        .log-success {
+            color: #198754;
+        }
+
+        .log-warning {
+            color: #fd7e14;
+        }
+
+        .log-error {
+            color: #dc3545;
+        }
+
+        .log-info {
+            color: #0d6efd;
+        }
+
+        .download-section {
+            display: none;
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            border-radius: 0.375rem;
+            padding: 1rem;
+            margin-top: 1rem;
+        }
+
+        .download-section.show {
+            display: block;
+        }
+
+        .download-info {
+            display: flex;
+            align-items: center;
+            gap: 1rem;
+            margin-bottom: 1rem;
+        }
+
+        .download-info .file-icon {
+            font-size: 2rem;
+            color: #0d6efd;
+        }
+
+        .download-info .file-details h6 {
+            margin: 0;
+            color: #495057;
+        }
+
+        .download-info .file-details small {
+            color: #6c757d;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container-fluid py-4">
+        <div class="row">
+            <div class="col-12">
+                <div class="d-flex align-items-center mb-4">
+                    <a href="/" class="btn btn-outline-secondary me-3">
+                        <i class="bi bi-arrow-left"></i> Quay lại
+                    </a>
+                    <h2 class="mb-0">
+                        <i class="bi bi-shield-check text-primary"></i> Chauphatsafety Crawler
+                    </h2>
+                </div>
+
+                <div class="card">
+                    <div class="card-header">
+                        <h5 class="mb-0">
+                            <i class="bi bi-link-45deg"></i> Nhập URL danh mục sản phẩm
+                        </h5>
+                    </div>
+                    <div class="card-body">
+                        <div class="mb-3">
+                            <label for="category-urls" class="form-label">
+                                URL danh mục (mỗi URL một dòng):
+                            </label>
+                            <textarea class="form-control" id="category-urls" rows="5" 
+                                placeholder="https://chauphatsafety.vn/vn/khoa-canh-bao-an-toan-lockout.html/p-1,brand-1&#10;https://chauphatsafety.vn/vn/danh-muc-khac.html"></textarea>
+                            <small class="form-text text-muted">
+                                Bạn có thể nhập nhiều URL danh mục, mỗi URL một dòng. Ví dụ: 
+                                <code>https://chauphatsafety.vn/vn/khoa-canh-bao-an-toan-lockout.html/p-1,brand-1</code>
+                            </small>
+                        </div>
+
+                        <div class="row g-3 mb-3">
+                            <div class="col-md-4">
+                                <label for="max-workers" class="form-label">Số luồng tối đa:</label>
+                                <select class="form-select" id="max-workers">
+                                    <option value="5">5 luồng (máy yếu)</option>
+                                    <option value="8" selected>8 luồng (mặc định)</option>
+                                    <option value="10">10 luồng (máy tốt)</option>
+                                    <option value="15">15 luồng (máy mạnh)</option>
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="max-retries" class="form-label">Số lần thử lại:</label>
+                                <input type="number" class="form-control" id="max-retries" value="3" min="1" max="5">
+                            </div>
+                            <div class="col-md-4">
+                                <label for="output-folder" class="form-label">Thư mục lưu kết quả:</label>
+                                <input type="text" class="form-control" id="output-folder" 
+                                    placeholder="output_chauphatsafety">
+                            </div>
+                        </div>
+
+                        <div class="progress-container" id="progress-container">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <span>Tiến trình</span>
+                                    <span id="progress-text">0%</span>
+                                </div>
+                                <div class="progress" style="height: 25px;">
+                                    <div class="progress-bar progress-bar-striped progress-bar-animated" 
+                                        id="progress-bar" role="progressbar" style="width: 0%">0%</div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="alert alert-info mb-0">
+                                    <strong id="progress-message">Đang khởi động...</strong>
+                                    <div class="small mt-1" id="progress-detail">Đang chuẩn bị...</div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="log-container" id="log-container">
+                            <div class="log-entry log-info">
+                                <i class="bi bi-info-circle"></i> Sẵn sàng bắt đầu cào dữ liệu...
+                            </div>
+                        </div>
+
+                        <!-- Download Section -->
+                        <div class="download-section" id="download-section">
+                            <div class="download-info">
+                                <i class="bi bi-file-earmark-zip file-icon"></i>
+                                <div class="file-details">
+                                    <h6 id="download-filename">Chauphatsafety_Results.zip</h6>
+                                    <small id="download-size">0 MB</small>
+                                </div>
+                            </div>
+                            <div class="d-flex gap-2">
+                                <button class="btn btn-primary" id="download-file">
+                                    <i class="bi bi-download"></i> Tải xuống
+                                </button>
+                                <button class="btn btn-outline-secondary" id="view-folder">
+                                    <i class="bi bi-folder"></i> Xem thư mục
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="mt-3">
+                            <button class="btn btn-success btn-lg" id="start-crawl">
+                                <i class="bi bi-play-fill"></i> Bắt đầu cào dữ liệu
+                            </button>
+                            <button class="btn btn-danger" id="stop-crawl" style="display: none;">
+                                <i class="bi bi-stop-fill"></i> Dừng
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.0/socket.io.min.js"></script>
+    <script>
+        class ChauphatsafetyCrawler {
+            constructor() {
+                this.socket = io();
+                this.isCrawling = false;
+                this.currentOutputFolder = null;
+                this.currentZipFile = null;
+
+                this.initializeEventListeners();
+            }
+
+            initializeEventListeners() {
+                // Crawling
+                document.getElementById('start-crawl').addEventListener('click', () => this.startCrawling());
+                document.getElementById('stop-crawl').addEventListener('click', () => this.stopCrawling());
+
+                // Download
+                document.getElementById('download-file').addEventListener('click', () => this.downloadFile());
+                document.getElementById('view-folder').addEventListener('click', () => this.viewFolder());
+
+                // Socket events
+                this.socket.on('progress_update', (data) => this.handleProgressUpdate(data));
+                this.socket.on('crawler_completed', (data) => this.handleCrawlCompleted(data));
+                this.socket.on('crawler_error', (data) => this.handleError(data));
+            }
+
+            startCrawling() {
+                if (this.isCrawling) return;
+
+                const categoryUrls = document.getElementById('category-urls').value.trim();
+                if (!categoryUrls) {
+                    alert('Vui lòng nhập ít nhất một URL danh mục!');
+                    return;
+                }
+
+                this.isCrawling = true;
+
+                // Update UI
+                document.getElementById('start-crawl').style.display = 'none';
+                document.getElementById('stop-crawl').style.display = 'inline-block';
+                document.getElementById('progress-container').classList.add('show');
+                document.getElementById('download-section').classList.remove('show');
+
+                // Reset progress
+                this.updateProgress(0, 'Đang khởi động...', 'Đang chuẩn bị crawler...');
+                this.clearLogs();
+                this.addLog('Bắt đầu cào dữ liệu từ chauphatsafety.vn...', 'info');
+
+                // Get settings
+                const maxWorkers = parseInt(document.getElementById('max-workers').value);
+                const maxRetries = parseInt(document.getElementById('max-retries').value);
+
+                // Split URLs by newline
+                const urlList = categoryUrls.split('\n')
+                    .map(url => url.trim())
+                    .filter(url => url.length > 0);
+
+                this.addLog(`Đã nhập ${urlList.length} URL danh mục`, 'info');
+                this.addLog(`Cấu hình: ${maxWorkers} luồng, ${maxRetries} lần thử lại`, 'info');
+
+                // Send crawl request via form submission (since we're using Flask route)
+                const form = document.createElement('form');
+                form.method = 'POST';
+                form.action = '/crawl-chauphatsafety';
+                
+                const urlsInput = document.createElement('input');
+                urlsInput.type = 'hidden';
+                urlsInput.name = 'category_urls';
+                urlsInput.value = categoryUrls;
+                form.appendChild(urlsInput);
+
+                const workersInput = document.createElement('input');
+                workersInput.type = 'hidden';
+                workersInput.name = 'max_workers';
+                workersInput.value = maxWorkers;
+                form.appendChild(workersInput);
+
+                const retriesInput = document.createElement('input');
+                retriesInput.type = 'hidden';
+                retriesInput.name = 'max_retries';
+                retriesInput.value = maxRetries;
+                form.appendChild(retriesInput);
+
+                document.body.appendChild(form);
+                form.submit();
+            }
+
+            stopCrawling() {
+                this.isCrawling = false;
+                document.getElementById('start-crawl').style.display = 'inline-block';
+                document.getElementById('stop-crawl').style.display = 'none';
+                this.addLog('Đã dừng cào dữ liệu', 'warning');
+            }
+
+            handleProgressUpdate(data) {
+                const percent = data.percent || 0;
+                const message = data.message || 'Đang xử lý...';
+                const detail = data.detail || '';
+
+                this.updateProgress(percent, message, detail);
+                this.addLog(message + (detail ? ` - ${detail}` : ''), 'info');
+            }
+
+            handleCrawlCompleted(data) {
+                this.isCrawling = false;
+                document.getElementById('start-crawl').style.display = 'inline-block';
+                document.getElementById('stop-crawl').style.display = 'none';
+
+                const message = data.message || 'Hoàn thành cào dữ liệu!';
+                this.updateProgress(100, message, '');
+                this.addLog(`🎉 ${message}`, 'success');
+
+                // Show download section if available
+                if (data.zip_file || data.download_link) {
+                    this.currentZipFile = data.zip_file || data.download_link;
+                    this.currentOutputFolder = data.result_dir;
+                    
+                    if (data.zip_filename) {
+                        document.getElementById('download-filename').textContent = data.zip_filename;
+                    }
+                    if (data.zip_size_mb) {
+                        document.getElementById('download-size').textContent = `${data.zip_size_mb} MB`;
+                    }
+                    
+                    document.getElementById('download-section').classList.add('show');
+                }
+            }
+
+            handleError(data) {
+                this.addLog(`❌ Lỗi: ${data.message || 'Có lỗi xảy ra'}`, 'error');
+                this.isCrawling = false;
+                document.getElementById('start-crawl').style.display = 'inline-block';
+                document.getElementById('stop-crawl').style.display = 'none';
+            }
+
+            updateProgress(percent, message, detail) {
+                const progressBar = document.getElementById('progress-bar');
+                progressBar.style.width = `${percent}%`;
+                progressBar.textContent = `${Math.round(percent)}%`;
+                progressBar.setAttribute('aria-valuenow', percent);
+
+                document.getElementById('progress-text').textContent = `${Math.round(percent)}%`;
+                document.getElementById('progress-message').textContent = message;
+                document.getElementById('progress-detail').textContent = detail;
+            }
+
+            addLog(message, type = 'info') {
+                const container = document.getElementById('log-container');
+                if (!container) return;
+
+                const entry = document.createElement('div');
+                entry.className = `log-entry log-${type}`;
+
+                const icon = {
+                    'success': 'bi-check-circle',
+                    'error': 'bi-x-circle',
+                    'warning': 'bi-exclamation-triangle',
+                    'info': 'bi-info-circle'
+                }[type] || 'bi-info-circle';
+
+                entry.innerHTML = `<i class="bi ${icon}"></i> ${message}`;
+                container.appendChild(entry);
+                container.scrollTop = container.scrollHeight;
+            }
+
+            clearLogs() {
+                const container = document.getElementById('log-container');
+                if (container) {
+                    container.innerHTML = '';
+                }
+            }
+
+            downloadFile() {
+                if (!this.currentZipFile) {
+                    this.addLog('Chưa có file ZIP để tải xuống', 'error');
+                    return;
+                }
+
+                // Extract filename from path
+                const filename = this.currentZipFile.split('/').pop() || this.currentZipFile.split('\\').pop();
+                
+                // Create download link
+                const link = document.createElement('a');
+                link.href = `/download-chauphatsafety-result/${filename}`;
+                link.download = filename;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+
+                this.addLog(`Đã bắt đầu tải xuống: ${filename}`, 'success');
+            }
+
+            viewFolder() {
+                if (!this.currentOutputFolder) {
+                    this.addLog('Không có thư mục kết quả', 'error');
+                    return;
+                }
+
+                // Open folder in new window (if possible)
+                alert(`Thư mục kết quả: ${this.currentOutputFolder}`);
+            }
+        }
+
+        // Initialize crawler when page loads
+        document.addEventListener('DOMContentLoaded', () => {
+            new ChauphatsafetyCrawler();
+        });
+    </script>
+</body>
+
+</html>

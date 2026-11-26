@@ -5,7 +5,7 @@ import zipfile
 from datetime import datetime
 from app.crawler import (
     is_category_url, is_product_url, extract_product_urls, extract_product_info,
-    download_baa_product_images_fixed, get_html_content
+    download_baa_product_images_fixed, get_html_content, get_html_content_robust
 )
 from app import socketio
 from concurrent.futures import ThreadPoolExecutor, as_completed
@@ -17,8 +17,8 @@ import requests
 import traceback
 from queue import Queue
 
-def get_category_vn_name(url):
-    html = get_html_content(url)
+def get_category_vn_name(url, use_google_cache_only=False):
+    html = get_html_content_robust(url, use_google_cache_only=use_google_cache_only)
     if html:
         soup = BeautifulSoup(html, 'html.parser')
         # Ưu tiên lấy từ breadcrumb
@@ -38,10 +38,10 @@ def get_category_vn_name(url):
         return name
     return 'danh_muc'
 
-def detect_pagination(url):
+def detect_pagination(url, use_google_cache_only=False):
     """Phát hiện số trang tối đa cho danh mục"""
     try:
-        html = get_html_content(url)
+        html = get_html_content_robust(url, use_google_cache_only=use_google_cache_only)
         if not html:
             return 1
         
@@ -54,16 +54,25 @@ def detect_pagination(url):
         
         # Tìm số trang lớn nhất
         max_page = 1
-        page_links = pagination.select('a.page-link')
+        page_links = pagination.select('a')
         
         for link in page_links:
             text = link.get_text(strip=True)
+            href = link.get('href', '')
             # Thử chuyển đổi văn bản thành số
             try:
                 page_num = int(text)
                 max_page = max(max_page, page_num)
             except ValueError:
-                pass
+                # Nếu không phải là số (ví dụ: >> hoặc Cuối), thử trích xuất từ href
+                match = re.search(r'-page-(\d+)', href)
+                if match:
+                    max_page = max(max_page, int(match.group(1)))
+                else:
+                    # Thử thêm pattern query parameter page=X
+                    match_q = re.search(r'[?&]page=(\d+)', href)
+                    if match_q:
+                        max_page = max(max_page, int(match_q.group(1)))
         
         return max(max_page, 1)
     except Exception as e:
@@ -294,13 +303,14 @@ def sanitize_folder_name(name):
     return clean_name if clean_name else 'Khac'
 
 class BaaProductCrawler:
-    def __init__(self, output_root=None, max_workers=8, max_retries=3):
+    def __init__(self, output_root=None, max_workers=16, max_retries=3, use_google_cache_only=False):
         self.output_root = output_root or os.path.join(os.getcwd(), "output_baa")
         self.max_workers = max_workers
         self.max_retries = max_retries
+        self.use_google_cache_only = use_google_cache_only
         os.makedirs(self.output_root, exist_ok=True)
 
-    def crawl_products(self, input_urls):
+    def crawl_products(self, input_urls, only_catalog=False):
         """
         Nhận vào danh sách URL (danh mục hoặc sản phẩm), trả về tuple (list dict sản phẩm, đường dẫn folder kết quả)
         Cải tiến với mô hình đa luồng theo chức năng:
@@ -337,7 +347,7 @@ class BaaProductCrawler:
         # Thông báo bắt đầu
         socketio.emit('progress_update', {
             'percent': 0, 
-            'message': f'Bắt đầu xử lý {len(input_urls)} URL từ BAA.vn',
+            'message': f'Bắt đầu xử lý {len(input_urls)} URL từ BAA.vn {"(Chế độ tải Catalog PDF)" if only_catalog else ""}',
             'detail': 'Đang phân tích và phân loại các URL...'
         })
         
@@ -355,7 +365,7 @@ class BaaProductCrawler:
                 try:
                     stats["urls_processed"] += 1
                     if is_category_url(url):
-                        cat_name = get_category_vn_name(url)
+                        cat_name = get_category_vn_name(url, use_google_cache_only=self.use_google_cache_only)
                         if cat_name not in category_map:
                             category_map[cat_name] = []
                             stats["categories"] += 1
@@ -395,27 +405,370 @@ class BaaProductCrawler:
         total_categories = len(category_map)
         total_steps = total_categories + (1 if single_products else 0)
         
-        # Tạo các thư mục danh mục trước
-        for cat_name in category_map.keys():
-            cat_dir = os.path.join(result_dir, cat_name)
-            anh_dir = os.path.join(cat_dir, "Anh")
-            os.makedirs(anh_dir, exist_ok=True)
-            category_folders.append(cat_dir)
-        
-        # Nếu có sản phẩm đơn lẻ, tạo thư mục riêng
-        if single_products:
-            le_dir = os.path.join(result_dir, 'san_pham_le')
-            anh_dir = os.path.join(le_dir, "Anh")
-            os.makedirs(anh_dir, exist_ok=True)
-            category_folders.append(le_dir)
-        
-        # 3. Xử lý từng danh mục với mô hình luồng theo chức năng
+        # CHƯƠNG TRÌNH CON: CHỈ CÀO CATALOG (PDF) SIÊU TỐC
+        if only_catalog:
+            from app.crawler import get_html_content_robust
+            from flask import url_for
+            
+            catalog_results = []
+            
+            # Gộp danh mục và sản phẩm lẻ
+            catalog_target_map = category_map.copy()
+            if single_products:
+                catalog_target_map['san_pham_le'] = single_products
+                
+            total_steps = len(catalog_target_map)
+            
+            # Không cần tạo thư mục danh mục (upload thẳng lên GDrive)
+            # Chỉ dùng report_dir để lưu báo cáo Excel
+
+            # Xử lý từng danh mục
+            for cat_idx, (cat_name, cat_urls) in enumerate(catalog_target_map.items()):
+                current_step = cat_idx + 1
+                step_progress_base = 5 + (cat_idx * 90 // max(1, total_steps))
+                
+                cat_dir = os.path.join(result_dir, cat_name)
+                
+                socketio.emit('progress_update', {
+                    'percent': step_progress_base, 
+                    'message': f'[{current_step}/{total_steps}] Đang quét danh mục: {cat_name}',
+                    'detail': 'Đang tìm danh sách URL sản phẩm và phân trang...'
+                })
+                
+                # Thu thập danh sách sản phẩm
+                if cat_name == 'san_pham_le':
+                    product_urls = cat_urls
+                else:
+                    product_urls = self._collect_product_urls_with_pagination(cat_urls)
+                    
+                product_urls = list(dict.fromkeys(product_urls))  # Loại trùng lặp
+                stats["products_found"] += len(product_urls)
+                
+                socketio.emit('progress_update', {
+                    'percent': step_progress_base + 5, 
+                    'message': f'[{cat_name}] Đã tìm thấy {len(product_urls)} sản phẩm. Bắt đầu tải catalog...',
+                    'detail': 'Đang khởi động luồng tải đa tiến trình...'
+                })
+                
+                # Lưu file urls.txt vào report_dir
+                urls_file = os.path.join(report_dir, f"{cat_name}_urls.txt")
+                with open(urls_file, 'w', encoding='utf-8') as f:
+                    for url in product_urls:
+                        f.write(f"{url}\n")
+                        
+                # Định nghĩa worker tải catalog của 1 sản phẩm
+                def download_catalog_worker(prod_url, prod_idx):
+                    prod_results = []
+                    try:
+                        # Tải trang sản phẩm với cơ chế Wayback/Google Cache robust
+                        html = get_html_content_robust(prod_url, use_google_cache_only=self.use_google_cache_only)
+                        if not html:
+                            return [{
+                                'URL sản phẩm': prod_url,
+                                'Mã sản phẩm': 'Không xác định',
+                                'Tên catalog': 'N/A',
+                                'URL catalog': 'N/A',
+                                'File': 'N/A',
+                                'Google Drive ID': 'N/A',
+                                'Google Drive Link': 'N/A',
+                                'Trạng thái': 'Lỗi',
+                                'Lỗi': 'Không thể tải HTML của trang sản phẩm'
+                            }]
+                            
+                        soup = BeautifulSoup(html, 'html.parser')
+                        
+                        # Trích xuất mã sản phẩm từ phần tử span.product__symbol__value
+                        product_code = ""
+                        product_code_element = soup.select_one('span.product__symbol__value')
+                        if product_code_element:
+                            product_code = product_code_element.get_text(strip=True)
+                        else:
+                            # Fallback trích xuất từ URL
+                            parts = prod_url.split('/')
+                            last_part = parts[-1] if parts[-1] else parts[-2]
+                            if '_' in last_part:
+                                product_code = last_part.split('_')[-2].upper()
+                            else:
+                                product_code = last_part.upper()
+                                
+                        # Làm sạch mã sản phẩm để làm tên file hợp lệ
+                        product_code = re.sub(r'[\\/:*?"<>|]', '_', product_code).strip()
+                        if not product_code:
+                            product_code = f"SP_{prod_idx}"
+                            
+                        # Trích xuất toàn bộ các link catalog PDF từ trang
+                        document_links = []
+                        
+                        # a. Selector a#Link_download hoặc a có ID chứa Link_download và kết thúc bằng .pdf hoặc chứa document
+                        for a in soup.select('a'):
+                            href = a.get('href')
+                            a_id = a.get('id', '')
+                            
+                            is_pdf_link = False
+                            if href:
+                                lower_href = href.lower()
+                                if lower_href.endswith('.pdf') or 'document/' in lower_href:
+                                    is_pdf_link = True
+                                    
+                            if href and (is_pdf_link or 'Link_download' in a_id):
+                                parent_tr = a.find_parent('tr')
+                                name = ""
+                                if parent_tr:
+                                    filelink_elem = parent_tr.select_one('.filelink')
+                                    if filelink_elem:
+                                        name = filelink_elem.text.strip()
+                                if not name:
+                                    name = a.text.strip() or href.split('/')[-1]
+                                    
+                                if not href.startswith('http'):
+                                    href = urljoin(prod_url, href)
+                                document_links.append({'url': href, 'name': name})
+                                
+                        # b. Selector .feature__metadata__link--download
+                        for elem in soup.select('.feature__metadata__link--download'):
+                            href = elem.get('href')
+                            if not href and elem.name == 'span':
+                                parent = elem.parent
+                                if parent and parent.name == 'a':
+                                    href = parent.get('href')
+                            if href and ('.pdf' in href.lower() or 'document' in href.lower()):
+                                filelink_elem = elem.select_one('.filelink')
+                                name = filelink_elem.text.strip() if filelink_elem else elem.text.strip()
+                                if not name:
+                                    name = href.split('/')[-1]
+                                if not href.startswith('http'):
+                                    href = urljoin(prod_url, href)
+                                document_links.append({'url': href, 'name': name})
+                                
+                        # c. Selector trong các bảng tài liệu
+                        catalog_tables = soup.select('.product-tab-content table, .tab-content table')
+                        for table in catalog_tables:
+                            for row in table.find_all('tr'):
+                                file_cells = row.select('td i.bi-file-earmark-text, td i.bi-file-pdf, td .filelink, td a[href*="document"]')
+                                if file_cells:
+                                    download_link = row.select_one('a')
+                                    if download_link:
+                                        href = download_link.get('href')
+                                        if href and ('.pdf' in href.lower() or 'document' in href.lower()):
+                                            filelink_elem = row.select_one('.filelink')
+                                            name = filelink_elem.text.strip() if filelink_elem else download_link.text.strip()
+                                            if not name:
+                                                name = href.split('/')[-1]
+                                            if not href.startswith('http'):
+                                                href = urljoin(prod_url, href)
+                                            document_links.append({'url': href, 'name': name})
+                                            
+                        # Loại bỏ trùng lặp URL tài liệu
+                        unique_links = []
+                        seen_urls = set()
+                        for link in document_links:
+                            if link['url'] not in seen_urls:
+                                seen_urls.add(link['url'])
+                                unique_links.append(link)
+                                
+                        # Chỉ lấy duy nhất liên kết catalog đầu tiên
+                        if unique_links:
+                            unique_links = [unique_links[0]]
+                                
+                        if not unique_links:
+                            return [{
+                                'URL sản phẩm': prod_url,
+                                'Mã sản phẩm': product_code,
+                                'Tên catalog': 'N/A',
+                                'URL catalog': 'N/A',
+                                'File': 'N/A',
+                                'Google Drive ID': 'N/A',
+                                'Google Drive Link': 'N/A',
+                                'Trạng thái': 'Không tìm thấy catalog',
+                                'Lỗi': ''
+                            }]
+                            
+                        # Upload thẳng PDF bytes lên Google Drive (không lưu file local)
+                        for idx, link in enumerate(unique_links):
+                            doc_url = link['url']
+                            
+                            # Đặt tên file theo mã sản phẩm
+                            filename = product_code
+                            if len(unique_links) > 1:
+                                filename = f"{product_code}_{idx+1}"
+                                
+                            if not filename.lower().endswith('.pdf'):
+                                filename += ".pdf"
+                                
+                            # Làm sạch ký tự đặc biệt trong tên file
+                            filename = re.sub(r'[\\/:*?"<>|]', '_', filename)
+                            
+                            # Headers tải PDF
+                            headers = {
+                                'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/123.0.0.0 Safari/537.36',
+                                'Referer': 'https://baa.vn/'
+                            }
+                            
+                            # Tải PDF vào memory
+                            pdf_bytes = None
+                            error_msg = ""
+                            for attempt in range(self.max_retries):
+                                try:
+                                    r = requests.get(doc_url, headers=headers, timeout=30,
+                                                     stream=False)
+                                    r.raise_for_status()
+                                    pdf_bytes = r.content
+                                    break
+                                except Exception as e:
+                                    error_msg = str(e)
+                                    time.sleep(1)
+                                    
+                            if pdf_bytes:
+                                # Upload thẳng bytes lên Google Drive
+                                gdrive_id = None
+                                gdrive_link = 'N/A'
+                                try:
+                                    from app.crawlerCDHACatalog import upload_bytes_to_gdrive
+                                    gdrive_id = upload_bytes_to_gdrive(pdf_bytes, filename)
+                                    if gdrive_id:
+                                        gdrive_link = f"https://drive.google.com/file/d/{gdrive_id}/view"
+                                        print(f"  > [GDRIVE] Upload thẳng thành công: {filename} → ID={gdrive_id}")
+                                    else:
+                                        print(f"  > [GDRIVE] Lỗi upload (kiểm tra credentials.json/token.json)")
+                                except Exception as ge:
+                                    print(f"  > [GDRIVE] Lỗi khi upload: {str(ge)}")
+                                    
+                                prod_results.append({
+                                    'URL sản phẩm': prod_url,
+                                    'Mã sản phẩm': product_code,
+                                    'Tên catalog': link['name'].strip() if link['name'] else 'Catalog PDF',
+                                    'URL catalog': doc_url,
+                                    'File': filename,
+                                    'Google Drive ID': gdrive_id if gdrive_id else 'N/A',
+                                    'Google Drive Link': gdrive_link,
+                                    'Trạng thái': 'Thành công' if gdrive_id else 'Upload GDrive thất bại',
+                                    'Lỗi': '' if gdrive_id else 'Không upload được lên Google Drive'
+                                })
+                            else:
+                                prod_results.append({
+                                    'URL sản phẩm': prod_url,
+                                    'Mã sản phẩm': product_code,
+                                    'Tên catalog': link['name'].strip() if link['name'] else 'Catalog PDF',
+                                    'URL catalog': doc_url,
+                                    'File': filename,
+                                    'Google Drive ID': 'N/A',
+                                    'Google Drive Link': 'N/A',
+                                    'Trạng thái': 'Lỗi tải PDF',
+                                    'Lỗi': error_msg
+                                })
+                                
+                    except Exception as e:
+                        prod_results.append({
+                            'URL sản phẩm': prod_url,
+                            'Mã sản phẩm': 'Lỗi xử lý',
+                            'Tên catalog': 'N/A',
+                            'URL catalog': 'N/A',
+                            'File': 'N/A',
+                            'Google Drive ID': 'N/A',
+                            'Google Drive Link': 'N/A',
+                            'Trạng thái': 'Lỗi',
+                            'Lỗi': str(e)
+                        })
+                    return prod_results
+                    
+                # Xử lý cào catalog đa luồng cho các sản phẩm trong danh mục
+                processed_count = 0
+                total_prods = len(product_urls)
+                # Tăng workers lên tối đa 20 cho việc tải catalog
+                catalog_workers = min(20, max(self.max_workers, 12))
+                
+                with ThreadPoolExecutor(max_workers=catalog_workers) as executor:
+                    futures = {executor.submit(download_catalog_worker, url, idx+1): url for idx, url in enumerate(product_urls)}
+                    
+                    for future in as_completed(futures):
+                        url = futures[future]
+                        try:
+                            res_list = future.result()
+                            catalog_results.extend(res_list)
+                            
+                            # Cộng sản phẩm xử lý thành công
+                            success_any = any(r['Trạng thái'] == 'Thành công' for r in res_list)
+                            if success_any:
+                                stats["products_processed"] += 1
+                            else:
+                                stats["failed_products"] += 1
+                        except Exception as e:
+                            print(f"Lỗi hệ thống khi tải catalog từ {url}: {str(e)}")
+                            stats["failed_products"] += 1
+                            
+                        processed_count += 1
+                        
+                        # Cập nhật tiến trình qua socket
+                        if processed_count % 5 == 0 or processed_count == total_prods:
+                            percent = step_progress_base + 5 + (processed_count * 80 // max(1, total_prods))
+                            uploaded_count = sum(1 for r in catalog_results if r.get('Google Drive ID', 'N/A') != 'N/A')
+                            
+                            socketio.emit('progress_update', {
+                                'percent': min(95, percent),
+                                'message': f'[{cat_name}] Đang upload catalog: {processed_count}/{total_prods} sản phẩm',
+                                'detail': f'Đã upload thành công lên GDrive: {uploaded_count} file PDF'
+                            })
+                            
+                # Tạo báo cáo Excel riêng cho danh mục này (lưu trong memory)
+                cat_results = [r for r in catalog_results if r['URL sản phẩm'] in set(product_urls)]
+                cat_report_path = os.path.join(report_dir, f"{cat_name}_Bao_cao_catalog.xlsx")
+                if cat_results:
+                    df = pd.DataFrame(cat_results)
+                    df.to_excel(cat_report_path, index=False)
+                    
+            # 3. Tạo báo cáo tổng hợp toàn cục
+            global_report = os.path.join(report_dir, "Bao_cao_tong_hop_catalog.xlsx")
+            if catalog_results:
+                # Thêm cột tóm tắt
+                success_count = sum(1 for r in catalog_results if r.get('Google Drive ID', 'N/A') != 'N/A')
+                df = pd.DataFrame(catalog_results)
+                df.to_excel(global_report, index=False)
+                
+            # Tạo file ZIP chỉ chứa báo cáo Excel (không có PDF - đã lên Drive)
+            zip_filename = result_dir + ".zip"
+            with zipfile.ZipFile(zip_filename, 'w', zipfile.ZIP_DEFLATED) as zipf:
+                for root, dirs, files in os.walk(report_dir):
+                    for file in files:
+                        file_path = os.path.join(root, file)
+                        arcname = os.path.relpath(file_path, self.output_root)
+                        zipf.write(file_path, arcname)
+                            
+            # Xóa thư mục tạm thời
+            try:
+                shutil.rmtree(result_dir)
+            except Exception as e:
+                print(f"Lỗi khi xóa thư mục tạm: {str(e)}")
+                
+            # Trả về thông tin hoàn thành qua socket
+            total_time = time.time() - start_time
+            success_uploaded = sum(1 for r in catalog_results if r.get('Google Drive ID', 'N/A') != 'N/A')
+            zip_size = os.path.getsize(zip_filename) / (1024*1024) if os.path.exists(zip_filename) else 0
+            download_info = {
+                'filename': os.path.basename(zip_filename),
+                'url': url_for('main.download_file', filename=os.path.basename(zip_filename)),
+                'size': f"{zip_size:.2f} MB"
+            }
+            
+            socketio.emit('progress_update', {
+                'percent': 100,
+                'message': f'🎉 Hoàn thành! Đã upload {success_uploaded}/{len(catalog_results)} catalog lên Google Drive.',
+                'detail': f'Thời gian: {total_time/60:.2f} phút • Báo cáo Excel: {zip_size:.2f} MB',
+                'completed': True,
+                'download_ready': True,
+                'download_info': download_info
+            })
+            
+            return catalog_results, result_dir
+            
+        # 3. Xử lý từng danh mục với mô hình luồng theo chức năng (Mặc định khi cào đầy đủ)
         for cat_idx, (cat_name, cat_urls) in enumerate(category_map.items()):
             current_step = cat_idx + 1
             step_progress_base = 5 + (current_step * 90 // max(1, total_steps))
             
             cat_dir = os.path.join(result_dir, cat_name)
             anh_dir = os.path.join(cat_dir, "Anh")
+            os.makedirs(cat_dir, exist_ok=True)
+            os.makedirs(anh_dir, exist_ok=True)
             
             socketio.emit('progress_update', {
                 'percent': step_progress_base, 
@@ -511,7 +864,7 @@ class BaaProductCrawler:
                         if url is None:
                             break
                         
-                        future = executor.submit(extract_product_info, url, required_fields, url_index + 1)
+                        future = executor.submit(extract_product_info, url, required_fields, url_index + 1, self.use_google_cache_only)
                         futures[future] = url
                         url_index += 1
                     
@@ -976,7 +1329,7 @@ class BaaProductCrawler:
         # Phát hiện số trang cho từng danh mục trước khi xử lý
         for idx, category_url in enumerate(category_urls):
             try:
-                max_pages = detect_pagination(category_url)
+                max_pages = detect_pagination(category_url, use_google_cache_only=self.use_google_cache_only)
                 category_pages[category_url] = max_pages
                 total_pages_estimate += max_pages
                 
@@ -1398,7 +1751,7 @@ class BaaProductCrawler:
         """
         if not spec_html:
             return spec_html
-        
+                
         # Tìm và chuyển đổi mã sản phẩm thành chữ hoa
         from bs4 import BeautifulSoup
         soup = BeautifulSoup(spec_html, 'html.parser')

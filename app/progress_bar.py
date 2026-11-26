@@ -5,6 +5,65 @@ from datetime import datetime, timedelta
 from functools import wraps
 from typing import Optional, Callable, Any, Dict, List
 import os
+import re
+
+# Fix for Windows terminal Unicode encoding
+import os as _os
+
+def _ensure_utf8():
+    """Buộc stdout/stderr dùng UTF-8 trên Windows để tránh UnicodeEncodeError với emoji/tiếng Việt."""
+    try:
+        # Đặt environment variable trước (ảnh hưởng subprocesses)
+        _os.environ.setdefault('PYTHONIOENCODING', 'utf-8')
+        _os.environ.setdefault('PYTHONUTF8', '1')
+
+        # Reconfigure stdout/stderr nếu chưa phải UTF-8
+        for stream in (sys.stdout, sys.stderr):
+            if stream is not None:
+                enc = getattr(stream, 'encoding', None)
+                if enc and enc.lower().replace('-', '') != 'utf8':
+                    if hasattr(stream, 'reconfigure'):
+                        try:
+                            stream.reconfigure(encoding='utf-8', errors='replace')
+                        except Exception:
+                            pass
+    except Exception:
+        pass
+
+_ensure_utf8()
+
+def _remove_vietnamese_accents(text):
+    """
+    Remove Vietnamese accents and special characters for safe terminal output.
+    """
+    if not isinstance(text, str):
+        return str(text)
+    
+    # Mapping for Vietnamese characters to ASCII
+    accents = {
+        'a': 'áàảãạăắằẳẵặâấầẩẫậ',
+        'A': 'ÁÀẢÃẠĂẮẰẲẴẶÂẤẦẨẪẬ',
+        'd': 'đ',
+        'D': 'Đ',
+        'e': 'éèẻẽẹêếềểễệ',
+        'E': 'ÉÈẺẼẸÊẾỀỂỄỆ',
+        'i': 'íìỉĩị',
+        'I': 'ÍÌỈĨỊ',
+        'o': 'óòỏõọôốồổỗộơớờởỡợ',
+        'O': 'ÓÒỎÕỌÔỐỒỔỖỘƠỚỜỞỠỢ',
+        'u': 'úùủũụưứừửữự',
+        'U': 'ÚÙỦŨỤƯỨỪỬỮỰ',
+        'y': 'ýỳỷỹỵ',
+        'Y': 'ÝỲỶỸỴ'
+    }
+    
+    res = text
+    for ascii_char, viet_chars in accents.items():
+        for char in viet_chars:
+            res = res.replace(char, ascii_char)
+            
+    # Also replace some other potential non-ASCII characters
+    return res.encode('ascii', 'ignore').decode('ascii')
 
 # ANSI color codes
 class Colors:
@@ -55,6 +114,8 @@ class TerminalProgressBar:
         self.status = "running"  # running, success, warning, error
         self.message = ""
         self.details = ""
+        # Ensure name is ASCII-safe for terminal
+        self.name = _remove_vietnamese_accents(name)
         self.indent_level = 0 if parent is None else parent.indent_level + 1
         self.children: List['TerminalProgressBar'] = []
         self.completed = False
@@ -78,9 +139,12 @@ class TerminalProgressBar:
         timestamp = datetime.now().strftime("%H:%M:%S")
         
         if self.verbose:
-            print(f"{Colors.BLUE}[{timestamp}]{Colors.RESET} {indent}🚀 {Colors.BOLD}{self.name}{Colors.RESET} - Bắt đầu...")
+            # Re-ensure message is clean of Vietnamese accents for terminal display
+            safe_name = self.name
+            start_msg = _remove_vietnamese_accents("Bat dau...")
+            print(f"{Colors.BLUE}[{timestamp}]{Colors.RESET} {indent}>> {Colors.BOLD}{safe_name}{Colors.RESET} - {start_msg}")
         else:
-            print(f"{indent}▶ {self.name}")
+            print(f"{indent}> {self.name}")
             
         sys.stdout.flush()
     
@@ -124,7 +188,7 @@ class TerminalProgressBar:
         # Thanh tiến trình
         bar_length = 20
         filled_length = int(bar_length * percent // 100)
-        bar = "█" * filled_length + "░" * (bar_length - filled_length)
+        bar = "#" * filled_length + "-" * (bar_length - filled_length)
         
         # Màu sắc theo trạng thái
         color = Colors.CYAN
@@ -140,13 +204,15 @@ class TerminalProgressBar:
         progress_line += f"{color}[{bar}]{Colors.RESET} "
         progress_line += f"{color}{percent:5.1f}%{Colors.RESET} "
         progress_line += f"({self.current_step}/{self.total_steps}) "
-        progress_line += f"⏱ {elapsed_str}{eta_str}"
+        progress_line += f"T: {elapsed_str}{eta_str}"
         
         if self.message:
-            progress_line += f" | {Colors.WHITE}{self.message}{Colors.RESET}"
+            safe_msg = _remove_vietnamese_accents(self.message)
+            progress_line += f" | {Colors.WHITE}{safe_msg}{Colors.RESET}"
             
         if self.details and self.verbose:
-            progress_line += f"\n{indent}  └─ {Colors.CYAN}{self.details}{Colors.RESET}"
+            safe_details = _remove_vietnamese_accents(self.details)
+            progress_line += f"\n{indent}  +- {Colors.CYAN}{safe_details}{Colors.RESET}"
         
         # Clear line và in lại
         print(f"\r\033[K{progress_line}", end="")
@@ -162,7 +228,7 @@ class TerminalProgressBar:
         """Hoàn thành tiến trình"""
         self.current_step = self.total_steps
         self.status = status
-        self.message = message or f"Hoàn thành {self.name}"
+        self.message = message or f"Hoan thanh {self.name}"
         self.completed = True
         
         if summary:
@@ -190,30 +256,31 @@ class TerminalProgressBar:
         
         # Icon và màu theo trạng thái
         if self.status == "success":
-            icon = "✅"
+            icon = "[OK] "
             color = Colors.GREEN
         elif self.status == "warning":
-            icon = "⚠️ "
+            icon = "[WARN]"
             color = Colors.YELLOW
         elif self.status == "error":
-            icon = "❌"
+            icon = "[ERR] "
             color = Colors.RED
         else:
-            icon = "ℹ️ "
+            icon = "[INFO]"
             color = Colors.BLUE
         
         print(f"\r\033[K", end="")  # Clear current line
         completion_line = f"{color}[{timestamp}]{Colors.RESET} {indent}{icon} "
         completion_line += f"{Colors.BOLD}{self.name}{Colors.RESET} - "
-        completion_line += f"{color}{self.message}{Colors.RESET} "
-        completion_line += f"(⏱ {elapsed_str})"
+        safe_msg = _remove_vietnamese_accents(self.message)
+        completion_line += f"{color}{safe_msg}{Colors.RESET} "
+        completion_line += f"(T: {elapsed_str})"
         
         print(completion_line)
         
         # In tóm tắt nếu có
         if self.result_summary and self.verbose:
             for key, value in self.result_summary.items():
-                print(f"{indent}  📊 {key}: {Colors.CYAN}{value}{Colors.RESET}")
+                print(f"{indent}  * {key}: {Colors.CYAN}{value}{Colors.RESET}")
         
         sys.stdout.flush()
     
@@ -222,7 +289,7 @@ class TerminalProgressBar:
         self.complete("error", message)
         if details:
             indent = "  " * self.indent_level
-            print(f"{indent}  🔍 {Colors.RED}{details}{Colors.RESET}")
+            print(f"{indent}  ? {Colors.RED}{details}{Colors.RESET}")
     
     def warning(self, message: str):
         """Đánh dấu cảnh báo"""
@@ -257,17 +324,17 @@ class TerminalProgressBar:
         failed = stats['failed_operations']
         
         print(f"\n{Colors.BOLD}{'='*60}{Colors.RESET}")
-        print(f"{Colors.BOLD}📋 TÓM TẮT TỔNG QUAN HỆ THỐNG{Colors.RESET}")
+        print(f"{Colors.BOLD}SUMMARY - TOM TAT TONG QUAN HE THONG{Colors.RESET}")
         print(f"{Colors.BOLD}{'='*60}{Colors.RESET}")
-        print(f"⏱️  Tổng thời gian: {Colors.CYAN}{TerminalProgressBar._format_time(total_time)}{Colors.RESET}")
-        print(f"🎯 Tổng số operations: {Colors.WHITE}{total_ops}{Colors.RESET}")
-        print(f"✅ Thành công: {Colors.GREEN}{completed}{Colors.RESET}")
-        print(f"❌ Thất bại: {Colors.RED}{failed}{Colors.RESET}")
+        print(f"Time - Tong thoi gian: {Colors.CYAN}{TerminalProgressBar._format_time(total_time)}{Colors.RESET}")
+        print(f"Ops  - Tong so operations: {Colors.WHITE}{total_ops}{Colors.RESET}")
+        print(f"OK   - Thanh cong: {Colors.GREEN}{completed}{Colors.RESET}")
+        print(f"ERR  - That bai: {Colors.RED}{failed}{Colors.RESET}")
         
         if total_ops > 0:
             success_rate = (completed / total_ops) * 100
             color = Colors.GREEN if success_rate >= 80 else Colors.YELLOW if success_rate >= 60 else Colors.RED
-            print(f"📊 Tỷ lệ thành công: {color}{success_rate:.1f}%{Colors.RESET}")
+            print(f"Rate - Ty le thanh cong: {color}{success_rate:.1f}%{Colors.RESET}")
         
         print(f"{Colors.BOLD}{'='*60}{Colors.RESET}\n")
         
@@ -314,12 +381,12 @@ def progress_tracker(name: str = None,
                 
                 # Tự động complete nếu chưa complete
                 if not progress.completed:
-                    progress.complete("success", f"Hoàn thành {func_name}")
+                    progress.complete("success", f"Hoan thanh {func_name}")
                 
                 return result
                 
             except Exception as e:
-                progress.error(f"Lỗi: {str(e)}")
+                progress.error(f"Loi: {str(e)}")
                 if show_summary and len(TerminalProgressBar._instances) == 0:
                     TerminalProgressBar.print_global_summary()
                 raise

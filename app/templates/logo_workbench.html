@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="vi">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Logo Workbench</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/css/bootstrap.min.css" rel="stylesheet">
+</head>
+
+<body class="bg-light">
+    <div class="container py-4">
+        <h2 class="mb-3">Logo Workbench</h2>
+        <ol class="mb-4">
+            <li>Upload PNG chứa logo → Khoanh vùng để cắt ra từng logo</li>
+            <li>Xem trước ghép nhiều logo trên 1 ảnh sản phẩm</li>
+            <li>Áp dụng hàng loạt cho folder ảnh và lưu preset</li>
+        </ol>
+
+        <div class="card mb-3">
+            <div class="card-header">Bước 1: Upload sheet PNG và cắt vùng</div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <input type="file" id="sheetFile" accept="image/png,image/webp,image/jpeg" class="form-control">
+                </div>
+                <div id="sheetInfo" class="small text-muted"></div>
+                <div class="mt-3">
+                    <button class="btn btn-primary" id="btnCropSelected" disabled>Cắt các vùng đã chọn</button>
+                </div>
+                <canvas id="sheetCanvas" class="mt-3 border" style="max-width:100%;"></canvas>
+                <div class="mt-3" id="cropResult"></div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Bước 2: Xem trước ghép</div>
+            <div class="card-body">
+                <div class="row g-2 mb-2">
+                    <div class="col-md-6">
+                        <input type="file" id="previewProduct" accept="image/*" class="form-control">
+                    </div>
+                    <div class="col-md-6">
+                        <button class="btn btn-success" id="btnRenderPreview">Render Preview</button>
+                    </div>
+                </div>
+                <div class="row g-2">
+                    <div class="col-md-4">
+                        <h6>Layers</h6>
+                        <div id="layersPanel" class="small"></div>
+                        <div class="mt-2">
+                            <input type="text" id="presetName" placeholder="Tên preset"
+                                class="form-control form-control-sm mb-2">
+                            <button class="btn btn-sm btn-outline-primary" id="btnSavePreset">Save Preset</button>
+                            <button class="btn btn-sm btn-outline-secondary" id="btnLoadPreset">Load Preset</button>
+                        </div>
+                    </div>
+                    <div class="col-md-8">
+                        <div id="previewHolder" class="border" style="min-height:200px; text-align:center;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card mb-3">
+            <div class="card-header">Bước 3: Áp dụng hàng loạt</div>
+            <div class="card-body">
+                <input type="file" id="batchProducts" accept="image/*" class="form-control" multiple>
+                <button class="btn btn-danger mt-3" id="btnRunBatch">Xử lý hàng loạt</button>
+                <div id="batchResult" class="mt-3 small"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let SESSION_ID = null;
+        let CROPS = []; // {id,url,w,h}
+        let LAYERS = []; // {logo_id, position, x,y, offset_x, offset_y, margin, opacity, z_index}
+
+        const canvas = document.getElementById('sheetCanvas');
+        const ctx = canvas.getContext('2d');
+        let sheetImg = null; let rects = []; let dragging = false; let startX = 0, startY = 0;
+
+        document.getElementById('sheetFile').addEventListener('change', async (e) => {
+            const f = e.target.files[0]; if (!f) return;
+            const fd = new FormData(); fd.append('sheet_png', f);
+            const r = await fetch('/logo/upload_sheet', { method: 'POST', body: fd }).then(r => r.json());
+            SESSION_ID = r.session_id; document.getElementById('sheetInfo').innerText = `Session: ${SESSION_ID} | ${r.width}x${r.height}`;
+            sheetImg = new Image(); sheetImg.crossOrigin = 'anonymous'; sheetImg.onload = () => { canvas.width = sheetImg.width; canvas.height = sheetImg.height; ctx.drawImage(sheetImg, 0, 0); };
+            sheetImg.src = r.sheet_url;
+            rects = []; CROPS = []; LAYERS = []; renderLayersPanel();
+            document.getElementById('btnCropSelected').disabled = false;
+        });
+
+        canvas.addEventListener('mousedown', (e) => { if (!sheetImg) return; dragging = true; const r = canvas.getBoundingClientRect(); startX = e.clientX - r.left; startY = e.clientY - r.top; });
+        canvas.addEventListener('mousemove', (e) => { if (!dragging || !sheetImg) return; const r = canvas.getBoundingClientRect(); const x = e.clientX - r.left; const y = e.clientY - r.top; drawSheet(); drawRect(startX, startY, x - startX, y - startY); });
+        canvas.addEventListener('mouseup', (e) => { if (!dragging || !sheetImg) return; dragging = false; const r = canvas.getBoundingClientRect(); const x = e.clientX - r.left; const y = e.clientY - r.top; rects.push({ x: Math.min(startX, x), y: Math.min(startY, y), w: Math.abs(x - startX), h: Math.abs(y - startY) }); drawSheet(); rects.forEach(rt => drawRect(rt.x, rt.y, rt.w, rt.h, '#0d6efd')); });
+
+        function drawSheet() { ctx.clearRect(0, 0, canvas.width, canvas.height); if (sheetImg) ctx.drawImage(sheetImg, 0, 0); }
+        function drawRect(x, y, w, h, color = '#198754') { ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.strokeRect(x, y, w, h); }
+
+        document.getElementById('btnCropSelected').addEventListener('click', async () => {
+            if (!SESSION_ID || rects.length === 0) return;
+            const payload = { session_id: SESSION_ID, regions: rects, remove_white_bg: true };
+            const r = await fetch('/logo/crop_regions', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) }).then(r => r.json());
+            CROPS = r.logos || [];
+            const wrap = document.getElementById('cropResult');
+            wrap.innerHTML = CROPS.map(c => `<img src="${c.url}" style="height:60px;margin:4px;border:1px solid #ddd;" onclick="addLayer('${c.id}')">`).join('');
+        });
+
+        window.addLayer = function (logo_id) {
+            LAYERS.push({ logo_id, position: 'top_right', offset_x: 0, offset_y: 0, margin: 0.02, opacity: 1, z_index: LAYERS.length });
+            renderLayersPanel();
+        }
+
+        function renderLayersPanel() {
+            const pane = document.getElementById('layersPanel');
+            pane.innerHTML = LAYERS.map((l, i) => {
+                return `<div class='border p-2 mb-1'>
+      <div>Layer ${i + 1} - Logo ${l.logo_id}</div>
+      <div class='row g-1'>
+        <div class='col-6'><select class='form-select form-select-sm' onchange='upd(${i},"position",this.value)'>
+          <option value='top_left' ${l.position === 'top_left' ? 'selected' : ''}>Top Left</option>
+          <option value='top_right' ${l.position === 'top_right' ? 'selected' : ''}>Top Right</option>
+          <option value='bottom_left' ${l.position === 'bottom_left' ? 'selected' : ''}>Bottom Left</option>
+          <option value='bottom_right' ${l.position === 'bottom_right' ? 'selected' : ''}>Bottom Right</option>
+          <option value='custom' ${l.position === 'custom' ? 'selected' : ''}>Custom</option>
+        </select></div>
+        <div class='col-3'><input class='form-control form-control-sm' type='number' value='${l.offset_x || 0}' placeholder='offX' onchange='upd(${i},"offset_x",this.value)'></div>
+        <div class='col-3'><input class='form-control form-control-sm' type='number' value='${l.offset_y || 0}' placeholder='offY' onchange='upd(${i},"offset_y",this.value)'></div>
+      </div>
+    </div>`
+            }).join('');
+        }
+
+        window.upd = function (i, k, v) { if (k === 'offset_x' || k === 'offset_y') v = parseInt(v || 0); LAYERS[i][k] = v; }
+
+        document.getElementById('btnRenderPreview').addEventListener('click', async () => {
+            const f = document.getElementById('previewProduct').files[0]; if (!f || !SESSION_ID) return;
+            const fd = new FormData(); fd.append('product_image', f); fd.append('session_id', SESSION_ID); fd.append('layers', JSON.stringify(LAYERS));
+            const r = await fetch('/compose/preview', { method: 'POST', body: fd }).then(r => r.json());
+            document.getElementById('previewHolder').innerHTML = `<img src='${r.preview_url}' style='max-width:100%'>`;
+        });
+
+        document.getElementById('btnRunBatch').addEventListener('click', async () => {
+            const files = document.getElementById('batchProducts').files; if (!files.length || !SESSION_ID) return;
+            const fd = new FormData(); fd.append('session_id', SESSION_ID); fd.append('layers', JSON.stringify(LAYERS));
+            for (const f of files) { fd.append('products', f); }
+            const r = await fetch('/compose/batch', { method: 'POST', body: fd }).then(r => r.json());
+            document.getElementById('batchResult').innerText = `Tổng: ${r.total} | Thành công: ${r.success} | Lỗi: ${r.failed?.length}`;
+        });
+
+        document.getElementById('btnSavePreset').addEventListener('click', async () => {
+            const name = document.getElementById('presetName').value || 'default';
+            const fd = new FormData(); fd.append('name', name); fd.append('config', JSON.stringify({ layers: LAYERS }));
+            await fetch('/compose/preset/save', { method: 'POST', body: fd });
+            alert('Đã lưu preset');
+        });
+
+        document.getElementById('btnLoadPreset').addEventListener('click', async () => {
+            const name = document.getElementById('presetName').value || 'default';
+            const r = await fetch('/compose/preset/load?name=' + encodeURIComponent(name)).then(r => r.json());
+            const cfg = JSON.parse(r.config || '{}');
+            LAYERS = cfg.layers || []; renderLayersPanel();
+        });
+    </script>
+</body>
+
+</html>

@@ -147,7 +147,11 @@ class KeyenceCrawler:
         self.chrome_options.add_argument('--log-level=3')
         self.chrome_options.add_argument('--disable-logging')
         
-        # Preferences để disable tutorial và overlay
+        # Thư mục tạm để tải PDF
+        self.download_dir = os.path.join(self.output_root, "temp_downloads")
+        os.makedirs(self.download_dir, exist_ok=True)
+        
+        # Preferences để disable tutorial, overlay và config download
         prefs = {
             "profile.default_content_setting_values": {
                 "notifications": 2,
@@ -155,7 +159,11 @@ class KeyenceCrawler:
             },
             "profile.managed_default_content_settings": {
                 "images": 2
-            }
+            },
+            "download.default_directory": self.download_dir,
+            "download.prompt_for_download": False,
+            "download.directory_upgrade": True,
+            "plugins.always_open_pdf_externally": True # Automatically download PDFs
         }
         self.chrome_options.add_experimental_option("prefs", prefs)
         
@@ -1355,13 +1363,15 @@ class KeyenceCrawler:
             logger.error(f"Lỗi khi tạo HTML table cho sản phẩm Keyence: {str(e)}")
             return ""
 
-    def crawl_products(self, category_urls):
+    def crawl_products(self, category_urls, only_catalog=False):
         """
         Method chính để cào dữ liệu sản phẩm Keyence từ danh sách category URLs
         Full workflow: Category → Series → Products → Details → Images → Excel
+        Hoặc: Category -> Series -> Products -> Catalog (only_catalog)
         
         Args:
             category_urls: Danh sách URLs của các categories
+            only_catalog: Boolean, nếu True thì chỉ tải file catalog PDF lên Google Drive
             
         Returns:
             str: Đường dẫn thư mục chứa kết quả
@@ -1381,7 +1391,7 @@ class KeyenceCrawler:
             for category_attempt in range(max_category_retries):
                 logger.info(f"🔄 Category attempt {category_attempt + 1}/{max_category_retries} for: {category_url}")
                 category_success = self._process_single_keyence_category(
-                    category_url, i, len(category_urls), result_dir
+                    category_url, i, len(category_urls), result_dir, only_catalog
                 )
                 
                 if category_success:
@@ -1413,7 +1423,7 @@ class KeyenceCrawler:
         
         return result_dir
 
-    def _process_single_keyence_category(self, category_url, category_index, total_categories, result_dir):
+    def _process_single_keyence_category(self, category_url, category_index, total_categories, result_dir, only_catalog=False):
         """
         Process một category Keyence với error handling và retry logic
         Full workflow để tạo folder cấu trúc theo yêu cầu
@@ -1423,6 +1433,7 @@ class KeyenceCrawler:
             category_index: Index của category trong danh sách
             total_categories: Tổng số categories
             result_dir: Thư mục chứa kết quả
+            only_catalog: Cờ chỉ tải catalog PDF
             
         Returns:
             bool: True nếu thành công, False nếu thất bại
@@ -1485,10 +1496,22 @@ class KeyenceCrawler:
                     series_products = []
                     for product_info in products_list:  # Lấy toàn bộ sản phẩm
                         try:
-                            product_details = self.extract_product_details(product_info['url'])
-                            if product_details:
-                                series_products.append(product_details)
+                            if only_catalog:
+                                # Chỉ lấy thông tin cơ bản để tải catalog
+                                series_products.append({
+                                    'product_code': product_info.get('code', ''),
+                                    'product_name': product_info.get('name', ''),
+                                    'full_product_name': product_info.get('name', ''),
+                                    'category': category_name,
+                                    'series': series_name,
+                                    'original_url': product_info['url']
+                                })
                                 self.stats["products_processed"] += 1
+                            else:
+                                product_details = self.extract_product_details(product_info['url'])
+                                if product_details:
+                                    series_products.append(product_details)
+                                    self.stats["products_processed"] += 1
                         except Exception as e:
                             logger.error(f"Lỗi khi xử lý product {product_info['url']}: {str(e)}")
                             continue
@@ -1516,30 +1539,121 @@ class KeyenceCrawler:
                 logger.warning(f"Không có dữ liệu sản phẩm nào từ category {category_name}")
                 return False
             
-            self.emit_progress(
-                category_progress_base + 50,
-                f"Đang tải ảnh cho {len(all_products_data)} sản phẩm",
-                f"Category: {category_name}"
-            )
-            
-            # Tải ảnh với đa luồng và white background processing
-            def download_keyence_image(product):
-                """Download và xử lý ảnh cho một sản phẩm Keyence"""
-                try:
-                    if product.get('image_url') and product.get('product_code'):
-                        return self.process_image_with_white_background(
-                            product['image_url'],
-                            images_dir,
-                            product['product_code']
-                        )
-                except Exception as e:
-                    logger.error(f"Lỗi khi tải ảnh cho {product.get('product_code', 'Unknown')}: {str(e)}")
-                    return False
-            
-            # Download ảnh với đa luồng
-            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
-                image_futures = [executor.submit(download_keyence_image, product) for product in all_products_data]
-                concurrent.futures.wait(image_futures)
+            if only_catalog:
+                self.emit_progress(
+                    category_progress_base + 50,
+                    f"Đang tải catalog cho {len(all_products_data)} sản phẩm",
+                    f"Category: {category_name}"
+                )
+                
+                # Import necessary module
+                from app.crawlerCDHACatalog import upload_to_gdrive
+                
+                def download_catalog_worker(product):
+                    """Download catalog for a Keyence product and upload to GDrive"""
+                    driver = None
+                    try:
+                        if not product.get('original_url'):
+                            return False
+                            
+                        driver = self.get_driver()
+                        driver.get(product['original_url'])
+                        time.sleep(3)
+                        
+                        # Find catalog button
+                        catalog_links = driver.find_elements(By.CSS_SELECTOR, "a.prd-catalogButton, a[href*='/download/download/confirmation/']")
+                        if not catalog_links:
+                            logger.warning(f"Không tìm thấy link catalog cho {product.get('product_code', '')}")
+                            return False
+                            
+                        # Click or navigate to catalog link
+                        href = catalog_links[0].get_attribute('href')
+                        try:
+                            driver.set_page_load_timeout(15)
+                            driver.get(href)
+                        except Exception as e:
+                            logger.info(f"Page load timeout or download started for {href}")
+                            pass
+                        time.sleep(3)
+                        
+                        # Check for email form
+                        try:
+                            email_input = driver.find_element(By.ID, "checkRegistered")
+                            if email_input:
+                                email_input.send_keys("info@haiphongtech.vn")
+                                btn = driver.find_element(By.ID, "js-form-btnCheckRegistered")
+                                try:
+                                    driver.set_page_load_timeout(15)
+                                    btn.click()
+                                except:
+                                    pass
+                                time.sleep(5)
+                        except:
+                            pass
+                            
+                        # Wait for file in download_dir
+                        downloaded_file = None
+                        for _ in range(15):
+                            files = os.listdir(self.download_dir)
+                            if files:
+                                # Check if not .crdownload
+                                completed = [f for f in files if not f.endswith('.crdownload')]
+                                if completed:
+                                    downloaded_file = completed[0]
+                                    break
+                            time.sleep(2)
+                            
+                        if downloaded_file:
+                            file_path = os.path.join(self.download_dir, downloaded_file)
+                            gdrive_id = upload_to_gdrive(file_path)
+                            if gdrive_id:
+                                product['Google Drive ID'] = gdrive_id
+                                product['Google Drive Link'] = f"https://drive.google.com/file/d/{gdrive_id}/view"
+                                product['Trạng thái'] = 'Thành công'
+                                product['Tên catalog'] = downloaded_file
+                                os.remove(file_path)
+                                return True
+                                
+                        product['Trạng thái'] = 'Lỗi'
+                        return False
+                    except Exception as e:
+                        logger.error(f"Lỗi khi tải catalog cho {product.get('product_code', 'Unknown')}: {str(e)}")
+                        product['Trạng thái'] = 'Lỗi'
+                        return False
+                    finally:
+                        if driver:
+                            self.close_driver(driver)
+                
+                # Download catalog with thread pool
+                with concurrent.futures.ThreadPoolExecutor(max_workers=min(self.max_workers, 5)) as executor:
+                    catalog_futures = [executor.submit(download_catalog_worker, p) for p in all_products_data]
+                    concurrent.futures.wait(catalog_futures)
+                    
+            else:
+                self.emit_progress(
+                    category_progress_base + 50,
+                    f"Đang tải ảnh cho {len(all_products_data)} sản phẩm",
+                    f"Category: {category_name}"
+                )
+                
+                # Tải ảnh với đa luồng và white background processing
+                def download_keyence_image(product):
+                    """Download và xử lý ảnh cho một sản phẩm Keyence"""
+                    try:
+                        if product.get('image_url') and product.get('product_code'):
+                            return self.process_image_with_white_background(
+                                product['image_url'],
+                                images_dir,
+                                product['product_code']
+                            )
+                    except Exception as e:
+                        logger.error(f"Lỗi khi tải ảnh cho {product.get('product_code', 'Unknown')}: {str(e)}")
+                        return False
+                
+                # Download ảnh với đa luồng
+                with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                    image_futures = [executor.submit(download_keyence_image, product) for product in all_products_data]
+                    concurrent.futures.wait(image_futures)
             
             # Tạo file Excel với Keyence specs
             excel_path = os.path.join(category_dir, f"{category_name}.xlsx")

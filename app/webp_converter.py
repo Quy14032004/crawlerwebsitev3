@@ -198,6 +198,82 @@ class WebPConverter:
                     pass
         
         return result
+
+    @staticmethod
+    def convert_bytes_to_webp(image_bytes, output_path, quality=90, lossless=False, method=6):
+        """
+        Chuyển đổi dữ liệu bytes ảnh (ví dụ tải qua requests) sang WebP và lưu ra đĩa.
+
+        Args:
+            image_bytes: Dữ liệu bytes của ảnh gốc
+            output_path: Đường dẫn file WebP đầu ra
+            quality: Chất lượng (1-100)
+            lossless: True nếu nén không mất dữ liệu
+            method: Phương pháp nén (0-6)
+
+        Returns:
+            str | None: đường dẫn file webp nếu thành công, None nếu lỗi
+        """
+        try:
+            # Mở ảnh từ bytes
+            with Image.open(io.BytesIO(image_bytes)) as img:
+                # Chuẩn hóa mode
+                if img.mode == 'RGBA':
+                    converted_img = img
+                elif img.mode in ('LA', 'L'):
+                    converted_img = img.convert('RGB')
+                elif img.mode == 'P':
+                    converted_img = img.convert('RGBA' if 'transparency' in img.info else 'RGB')
+                elif img.mode == 'CMYK':
+                    converted_img = img.convert('RGB')
+                else:
+                    converted_img = img if img.mode == 'RGB' else img.convert('RGB')
+
+                # Đảm bảo thư mục tồn tại
+                out_dir = os.path.dirname(output_path) or '.'
+                os.makedirs(out_dir, exist_ok=True)
+
+                # Lưu WebP
+                save_kwargs = {
+                    'format': 'WEBP',
+                    'quality': quality,
+                    'method': method,
+                    'lossless': lossless,
+                }
+                converted_img.save(output_path, **save_kwargs)
+
+            # Xác thực file hợp lệ
+            if not os.path.exists(output_path):
+                logger.error("File WebP không được tạo")
+                return None
+
+            if not WebPConverter.verify_webp_signature(output_path):
+                logger.error("File output không phải WebP hợp lệ")
+                try:
+                    os.remove(output_path)
+                except Exception:
+                    pass
+                return None
+
+            info = WebPConverter.get_webp_info(output_path)
+            if info and info.get('format') != 'WEBP':
+                logger.error(f"PIL nhận diện format không phải WEBP: {info.get('format')}")
+                try:
+                    os.remove(output_path)
+                except Exception:
+                    pass
+                return None
+
+            return output_path
+
+        except Exception as e:
+            logger.error(f"Lỗi chuyển đổi WebP từ bytes: {str(e)}")
+            try:
+                if os.path.exists(output_path):
+                    os.remove(output_path)
+            except Exception:
+                pass
+            return None
     
     @staticmethod
     def batch_convert(input_files, output_dir, quality=90, lossless=False, method=6):

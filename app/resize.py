@@ -8,6 +8,7 @@ import subprocess
 import sys
 import shutil
 import time
+from app.excel_merger import ExcelMerger
 
 class ImageResizer:
     """
@@ -25,6 +26,8 @@ class ImageResizer:
         
         # Kiểm tra xem Real-ESRGAN executable có tồn tại không
         self.realesrgan_available = self._check_realesrgan_available()
+        # Thư mục models (nếu tìm thấy)
+        self.models_dir = None
     
     def _check_realesrgan_available(self):
         """Kiểm tra xem Real-ESRGAN executable có khả dụng không"""
@@ -42,11 +45,29 @@ class ImageResizer:
             if os.path.exists(path):
                 self.logger.info(f"Tìm thấy Real-ESRGAN executable tại: {path}")
                 self.realesrgan_path = path
+                # Xác định thư mục models đi kèm
+                self.models_dir = self._locate_models_dir(path)
+                if self.models_dir:
+                    self.logger.info(f"Tìm thấy thư mục models tại: {self.models_dir}")
+                else:
+                    self.logger.warning("Không tìm thấy thư mục models cạnh executable. Sẽ dùng mặc định 'models' nếu có.")
                 return True
                 
         self.logger.warning("Không tìm thấy Real-ESRGAN executable. Sẽ sử dụng phương pháp thay thế.")
         return False
-    
+
+    def _locate_models_dir(self, exec_path: str):
+        """Tìm thư mục models hợp lệ gần executable hoặc trong dự án."""
+        candidates = [
+            os.path.join(os.path.dirname(exec_path), 'models'),
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'bin', 'models'),
+            os.path.join(os.path.dirname(os.path.dirname(__file__)), 'models'),
+        ]
+        for p in candidates:
+            if os.path.isdir(p) and os.listdir(p):
+                return os.path.abspath(p)
+        return None
+
     def upscale_image(self, input_path, output_path=None, scale=2, target_size=(600, 600)):
         """
         Sử dụng các phương pháp nâng cao chất lượng để tăng kích thước ảnh.
@@ -179,6 +200,9 @@ class ImageResizer:
             "-v",              # Hiển thị chi tiết để debug
             "-f", "png"        # Xuất dưới dạng PNG để giữ nguyên chất lượng
         ]
+        # Truyền models dir nếu có
+        if self.models_dir and os.path.isdir(self.models_dir):
+            cmd.extend(["-m", self.models_dir])
         
         # Thêm tham số giảm nhiễu nếu ảnh gốc có kích thước nhỏ
         img_size = Image.open(input_path).size

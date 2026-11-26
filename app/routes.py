@@ -43,7 +43,8 @@ from app.crawlerBAA_Qlight import (
     crawl_specific_series,
 )
 
-# from app.misumicrawler import MisumiCrawler  # File đã bị xóa
+from app.logo_workbench import services as lw_services
+from app.image_processor import ImageProcessor
 
 main_bp = Blueprint('main', __name__)
 
@@ -2626,11 +2627,113 @@ def create_category_images_report(results, output_file):
         print(f"Lỗi khi tạo báo cáo tổng hợp: {str(e)}")
         return False
 
-# @main_bp.route('/crawl-codienhaiau', methods=['POST'])
-# def crawl_codienhaiau():
-#     # DISABLED: CategoryCrawler đã bị xóa
-#     flash('Chức năng này hiện không khả dụng.', 'warning')
-#     return redirect(url_for('main.index'))
+# ===== FESTO CRAWLER ROUTES =====
+
+@main_bp.route('/crawl-festo', methods=['GET', 'POST'])
+@progress_tracker(name="Cào dữ liệu Festo Việt Nam", total_steps=100, verbose=True)
+def crawl_festo(progress: TerminalProgressBar):
+    if request.method == 'GET':
+        return redirect(url_for('main.index'))
+    
+    try:
+        progress.update(5, "Đang kiểm tra thông tin đầu vào")
+        
+        category_urls = request.form.get('category_urls', '').strip()
+        if not category_urls:
+            progress.error('Vui lòng nhập ít nhất một URL danh mục hoặc sản phẩm.')
+            flash('Vui lòng nhập ít nhất một URL danh mục hoặc sản phẩm.', 'error')
+            return redirect(url_for('main.index'))
+        
+        max_workers = int(request.form.get('max_workers', 4))
+        max_workers = min(max(1, max_workers), 8)
+        
+        progress.update(10, "Đang chuẩn bị crawler", f"Max workers: {max_workers}")
+        
+        url_list = []
+        for u in category_urls.splitlines():
+            u = u.strip()
+            if not u:
+                continue
+            match = re.search(r'https?://[^\s]+', u)
+            if match:
+                url_list.append(match.group(0))
+            else:
+                url_list.append(u)
+        
+        progress.update(15, f"Đã phân tích {len(url_list)} URLs", "Đang khởi tạo Festo crawler")
+        
+        from app.crawlerFesto import FestoCrawler
+        
+        output_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], 'output_festo')
+        os.makedirs(output_folder, exist_ok=True)
+        
+        crawler = FestoCrawler(
+            output_root=output_folder,
+            max_workers=max_workers
+        )
+        
+        progress.update(20, "Bắt đầu cào dữ liệu", "Đang xử lý các URL...")
+        
+        start_time = time.time()
+        products, result_dir = crawler.crawl_products(url_list)
+        duration = time.time() - start_time
+        
+        progress.update(90, "Hoàn thành cào dữ liệu", f"Đã xử lý {len(products)} sản phẩm")
+        
+        if products:
+            progress.update(95, "Đang tạo báo cáo kết quả")
+            
+            zip_files = [f for f in os.listdir(result_dir) if f.endswith('.zip')]
+            if zip_files:
+                download_link = url_for('main.download_festo_result', filename=zip_files[0])
+                flash(f'Cào dữ liệu thành công! Đã xử lý {len(products)} sản phẩm từ Festo.', 'success')
+                progress.update(100, "Hoàn thành!", f"Kết quả: {len(products)} sản phẩm")
+                
+                stats = {
+                    "Sản phẩm đã xử lý": len(products),
+                    "Thời gian thực hiện": f"{duration:.2f} giây",
+                    "Số luồng sử dụng": max_workers
+                }
+                
+                return render_template('crawler_result.html', 
+                                     success=True,
+                                     message=f'Đã cào thành công {len(products)} sản phẩm từ Festo',
+                                     download_link=download_link,
+                                     result_dir=result_dir,
+                                     products_count=len(products),
+                                     zip_filename=zip_files[0],
+                                     stats=stats,
+                                     crawler_type="Festo Việt Nam")
+            else:
+                flash('Cào dữ liệu thành công nhưng không tìm thấy file kết quả.', 'warning')
+        else:
+            flash('Không tìm thấy sản phẩm nào từ các URL đã nhập.', 'warning')
+        
+        progress.update(100, "Hoàn thành")
+        return redirect(url_for('main.index'))
+        
+    except Exception as e:
+        error_msg = f"Lỗi khi cào dữ liệu Festo: {str(e)}"
+        print(error_msg)
+        print(traceback.format_exc())
+        progress.error(error_msg)
+        flash(error_msg, 'error')
+        return redirect(url_for('main.index'))
+
+@main_bp.route('/download-festo-result/<filename>')
+def download_festo_result(filename):
+    try:
+        festo_output_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'output_festo')
+        file_path = os.path.join(festo_output_dir, filename)
+        
+        if not os.path.exists(file_path):
+            flash('File không tồn tại hoặc đã bị xóa', 'error')
+            return redirect(url_for('main.index'))
+            
+        return send_file(file_path, as_attachment=True)
+    except Exception as e:
+        logger.error(f"Lỗi khi tải kết quả Festo: {str(e)}")
+        return jsonify({'error': f'Lỗi khi tải kết quả: {str(e)}'}), 500
 
 @main_bp.route('/crawl-baa', methods=['POST'])
 @progress_tracker(name="Cào dữ liệu BAA.vn", total_steps=100, verbose=True)
@@ -2729,6 +2832,13 @@ def crawl_baa(progress: TerminalProgressBar):
         progress.error(f'Lỗi: {str(e)}', traceback.format_exc())
         flash(f'Lỗi: {str(e)}', 'error')
         return redirect(url_for('main.index'))
+
+@main_bp.route('/baa-qlight-crawler')
+def baa_qlight_crawler():
+    """
+    Giao diện BAA Qlight Crawler với 3 bước: chọn danh mục → chọn series → cào dữ liệu
+    """
+    return render_template('baa_qlight_crawler.html')
 
 @main_bp.route('/crawl-baa-qlight', methods=['POST'])
 @progress_tracker(name="Cào dữ liệu BAA Qlight", total_steps=100, verbose=True)
@@ -4152,62 +4262,93 @@ def hoplong_brands():
 def crawl_hoplong():
     try:
         data = request.get_json() or {}
+        category_urls = data.get('category_urls') or []
+        if isinstance(category_urls, str):
+            category_urls = [u.strip() for u in category_urls.splitlines() if u.strip()]
+        category_urls = [u.strip() for u in category_urls if isinstance(u, str) and u.strip().startswith('http')]
+
         category = data.get('category', '').strip()
         subcategories = data.get('subcategories') or []
         brands = data.get('brands') or []
         max_workers = int(data.get('max_workers') or 10)
-        
-        # Hỗ trợ cả old format (chỉ category) và new format (với subcategories)
-        if not category or not brands:
-            return jsonify({'success': False, 'message': 'Thiếu category hoặc danh sách hãng'}), 400
-        
-        # Validation thêm
+        max_pages = int(data.get('max_pages') if data.get('max_pages') is not None else 200)
+
+        # Validation so luong
         if max_workers < 1 or max_workers > 32:
-            return jsonify({'success': False, 'message': 'Số luồng phải từ 1-32'}), 400
-            
-        # Nếu có subcategories, sử dụng subcategory đầu tiên làm target
-        target_category = category
-        if subcategories:
-            target_category = subcategories[0]
-            
-        logger.info(f"Bắt đầu crawl HopLong - Category: {target_category}, Brands: {len(brands)}, Workers: {max_workers}")
+            max_workers = 10
 
         crawler = HopLongCrawler(socketio_instance=socketio, max_workers=max_workers)
 
-        def run():
-            try:
-                result_dir = crawler.crawl_category_by_brands(target_category, brands)
-                socketio.emit('crawler_completed', {
-                    'success': True,
-                    'message': 'Cào dữ liệu HopLong hoàn thành!',
-                    'result_dir': result_dir,
-                    'stats': crawler.stats
-                })
-                logger.info(f"HopLong crawler hoàn thành: {result_dir}")
-                
-            except Exception as e:
-                import traceback
-                error_details = traceback.format_exc()
-                logger.error(f"Lỗi crawler HopLong: {str(e)}")
-                logger.error(error_details)
-                
-                socketio.emit('crawler_error', {
-                    'success': False,
-                    'message': f'Lỗi khi cào dữ liệu: {str(e)}',
-                    'error_details': error_details
-                })
+        if category_urls:
+            logger.info(f"Bắt đầu crawl HopLong đa danh mục - {len(category_urls)} URL, Workers: {max_workers}, Max pages: {max_pages}")
 
-        import threading
-        t = threading.Thread(target=run, daemon=True)
-        t.start()
-        return jsonify({'success': True, 'message': 'Đã bắt đầu cào dữ liệu HopLong'})
-        
+            def run():
+                try:
+                    result_dir = crawler.crawl_multiple_categories(category_urls, max_pages=max_pages)
+                    socketio.emit('crawler_completed', {
+                        'success': True,
+                        'message': 'Cào dữ liệu HopLong hoàn thành!',
+                        'result_dir': result_dir,
+                        'stats': getattr(crawler, 'stats', {})
+                    })
+                    logger.info(f"HopLong crawler hoàn thành: {result_dir}")
+                except Exception as e:
+                    import traceback
+                    error_details = traceback.format_exc()
+                    logger.error(f"Lỗi crawler HopLong: {str(e)}")
+                    logger.error(error_details)
+                    socketio.emit('crawler_error', {
+                        'success': False,
+                        'message': f'Lỗi khi cào dữ liệu: {str(e)}',
+                        'error_details': error_details
+                    })
+
+            import threading
+            t = threading.Thread(target=run, daemon=True)
+            t.start()
+            return jsonify({'success': True, 'message': f'Đã bắt đầu cào dữ liệu {len(category_urls)} danh mục HopLong'})
+
+        elif category and brands:
+            target_category = category
+            if subcategories:
+                target_category = subcategories[0]
+
+            logger.info(f"Bắt đầu crawl HopLong - Category: {target_category}, Brands: {len(brands)}, Workers: {max_workers}")
+
+            def run_brand():
+                try:
+                    result_dir = crawler.crawl_category_by_brands(target_category, brands)
+                    socketio.emit('crawler_completed', {
+                        'success': True,
+                        'message': 'Cào dữ liệu HopLong hoàn thành!',
+                        'result_dir': result_dir,
+                        'stats': getattr(crawler, 'stats', {})
+                    })
+                    logger.info(f"HopLong crawler hoàn thành: {result_dir}")
+                except Exception as e:
+                    import traceback
+                    error_details = traceback.format_exc()
+                    logger.error(f"Lỗi crawler HopLong: {str(e)}")
+                    logger.error(error_details)
+                    socketio.emit('crawler_error', {
+                        'success': False,
+                        'message': f'Lỗi khi cào dữ liệu: {str(e)}',
+                        'error_details': error_details
+                    })
+
+            import threading
+            t = threading.Thread(target=run_brand, daemon=True)
+            t.start()
+            return jsonify({'success': True, 'message': 'Đã bắt đầu cào dữ liệu HopLong'})
+
+        else:
+            return jsonify({'success': False, 'message': 'Vui lòng nhập ít nhất 1 URL danh mục hợp lệ (bắt đầu bằng http/https)'}), 400
+
     except Exception as e:
         import traceback
         error_details = traceback.format_exc()
         logger.error(f"Lỗi API crawl hoplong: {str(e)}")
         logger.error(error_details)
-        
         return jsonify({
             'success': False,
             'message': f'Lỗi API: {str(e)}',
@@ -4241,12 +4382,14 @@ def list_hoplong_results():
                                 pass
                     img_dir = os.path.join(sub_path, 'images')
                     if os.path.exists(img_dir):
-                        image_count += len([x for x in os.listdir(img_dir) if x.lower().endswith('.webp')])
+                        image_count += len([x for x in os.listdir(img_dir) if x.lower().endswith(('.webp', '.jpg', '.png'))])
+                    image_count += len([x for x in os.listdir(sub_path) if x.lower().endswith(('.webp', '.jpg', '.png'))])
             stat = os.stat(folder)
             created_time = datetime.fromtimestamp(stat.st_ctime).strftime('%d/%m/%Y %H:%M')
             results.append({
                 'folder_name': item,
                 'created_time': created_time,
+                'brand_count': category_count,
                 'category_count': category_count,
                 'product_count': product_count,
                 'image_count': image_count,
@@ -4274,3 +4417,932 @@ def download_hoplong_result(folder_name):
         return send_file(zip_path, as_attachment=True, download_name=f"{folder_name}.zip")
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
+# ====== static_proxy Route ======
+@main_bp.route('/static_proxy')
+def static_proxy():
+    path = request.args.get('path')
+    if not path:
+        return 'Missing path', 400
+    if not os.path.exists(path):
+        return 'File not found', 404
+    directory = os.path.dirname(path)
+    filename = os.path.basename(path)
+    return send_from_directory(directory, filename)
+
+# ====== AI Image Agent Routes ======
+@main_bp.route('/image-processor')
+def image_processor():
+    return render_template('image_processor.html')
+
+@main_bp.route('/process_images', methods=['POST'])
+def process_images_route():
+    import uuid
+    import shutil
+    import json
+    try:
+        logos = request.files.getlist('logos')
+        products = request.files.getlist('products')
+        logo_mode = request.form.get('logo_mode', 'single')
+        webp_quality = int(request.form.get('webp_quality', 95))
+        logo_size_pct = int(request.form.get('logo_size', 15))
+        
+        if not logos or not products:
+            return jsonify({'error': 'Thiếu file logo hoặc sản phẩm'}), 400
+            
+        temp_dir = tempfile.mkdtemp()
+        logo_paths = []
+        for i, logo in enumerate(logos):
+            logo_path = os.path.join(temp_dir, f"logo_{i}_{secure_filename(logo.filename)}")
+            logo.save(logo_path)
+            logo_paths.append(logo_path)
+            
+        product_paths = []
+        for i, prod in enumerate(products):
+            prod_path = os.path.join(temp_dir, f"prod_{i}_{secure_filename(prod.filename)}")
+            prod.save(prod_path)
+            product_paths.append(prod_path)
+            
+        processor = ImageProcessor()
+        processor.logo_scale_ratio = logo_size_pct / 100.0
+        processor.use_original_logo_size = False
+        
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        output_folder_name = f"processed_{timestamp}"
+        output_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], output_folder_name)
+        os.makedirs(output_folder, exist_ok=True)
+        
+        processed_successfully = 0
+        failed_images = []
+        start_time = time.time()
+        from PIL import Image
+        
+        for idx, prod_path in enumerate(product_paths):
+            orig_name = os.path.basename(prod_path).replace(f"prod_{idx}_", "")
+            base_name = os.path.splitext(orig_name)[0]
+            out_path = os.path.join(output_folder, f"{base_name}.webp")
+            
+            try:
+                if logo_mode == 'single':
+                    pos = request.form.get('logo_position', 'top_right')
+                    success = processor.process_single_image(
+                        product_image_path=prod_path,
+                        logo_image_path=logo_paths[0],
+                        output_path=out_path,
+                        position=pos,
+                        quality=webp_quality
+                    )
+                elif logo_mode == 'multiple':
+                    pos1 = request.form.get('logo1_position', 'top_left')
+                    pos2 = request.form.get('logo2_position', 'top_right')
+                    
+                    logos_info = [
+                        {'path': logo_paths[0], 'position': pos1},
+                        {'path': logo_paths[1], 'position': pos2}
+                    ]
+                    for li in range(2, len(logo_paths)):
+                        logos_info.append({'path': logo_paths[li], 'position': 'bottom_right'})
+                        
+                    success = processor.process_single_image_multiple_logos(
+                        product_image_path=prod_path,
+                        logos_info=logos_info,
+                        output_path=out_path,
+                        quality=webp_quality
+                    )
+                elif logo_mode == 'overlay':
+                    pos = request.form.get('overlay_position', 'top_center')
+                    scale = float(request.form.get('overlay_scale', 0.6))
+                    opacity = float(request.form.get('overlay_opacity', 1.0))
+                    
+                    with Image.open(prod_path) as p_img:
+                        with Image.open(logo_paths[0]) as l_img:
+                            res_img = processor.add_overlay_image(
+                                product_image=p_img,
+                                overlay_image=l_img,
+                                scale_ratio=scale,
+                                position=pos,
+                                opacity=opacity
+                            )
+                            success = processor.save_as_webp(res_img, out_path, quality=webp_quality)
+                else:
+                    success = False
+                    
+                if success:
+                    processed_successfully += 1
+                else:
+                    failed_images.append(orig_name)
+            except Exception as e:
+                logger.error(f"Lỗi xử lý ảnh {orig_name}: {e}")
+                failed_images.append(orig_name)
+                
+        zip_filename = f"processed_images_{timestamp}.zip"
+        zip_path = os.path.join(current_app.config['UPLOAD_FOLDER'], zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, files in os.walk(output_folder):
+                for f in files:
+                    file_path = os.path.join(root, f)
+                    arcname = os.path.relpath(file_path, output_folder)
+                    zipf.write(file_path, arcname)
+                    
+        try:
+            shutil.rmtree(temp_dir)
+        except Exception:
+            pass
+            
+        processing_time = time.time() - start_time
+        download_url = url_for('main.download_file', filename=zip_filename)
+        
+        return jsonify({
+            'total_images': len(products),
+            'processed_successfully': processed_successfully,
+            'failed_images': failed_images,
+            'processing_time': processing_time,
+            'download_url': download_url,
+            'output_folder': output_folder
+        })
+        
+    except Exception as e:
+        logger.error(f"Lỗi process_images_route: {e}")
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+# ====== Logo Workbench Routes ======
+@main_bp.route('/logo-workbench')
+def logo_workbench():
+    return render_template('logo_workbench.html')
+
+@main_bp.route('/logo/upload_sheet', methods=['POST'])
+def lw_upload_sheet():
+    file = request.files.get('sheet_png')
+    if not file:
+        return jsonify({'error': 'missing sheet_png'}), 400
+    info = lw_services.save_sheet(file)
+    return jsonify(info)
+
+@main_bp.route('/logo/crop_regions', methods=['POST'])
+def lw_crop_regions():
+    data = request.get_json(silent=True) or {}
+    session_id = data.get('session_id')
+    regions = data.get('regions', [])
+    remove_white_bg = data.get('remove_white_bg', True)
+    if not session_id or not regions:
+        return jsonify({'error': 'missing session_id or regions'}), 400
+    try:
+        res = lw_services.crop_regions(session_id, regions, remove_white_bg)
+        return jsonify(res)
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+@main_bp.route('/compose/preview', methods=['POST'])
+def lw_compose_preview():
+    file = request.files.get('product_image')
+    session_id = request.form.get('session_id')
+    layers_json = request.form.get('layers')
+    if not file or not session_id or not layers_json:
+        return jsonify({'error': 'missing fields'}), 400
+    import json
+    try:
+        layers = json.loads(layers_json)
+        preview_path = lw_services.compose_preview(file, session_id, layers)
+        return jsonify({'url': f'/static_proxy?path={preview_path}'})
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@main_bp.route('/compose/batch', methods=['POST'])
+def lw_compose_batch():
+    import uuid
+    import shutil
+    files = request.files.getlist('product_images')
+    session_id = request.form.get('session_id')
+    layers_json = request.form.get('layers')
+    if not files or not session_id or not layers_json:
+        return jsonify({'error': 'missing fields'}), 400
+    import json
+    try:
+        layers = json.loads(layers_json)
+        temp_dir = tempfile.mkdtemp()
+        paths = []
+        for f in files:
+            p = os.path.join(temp_dir, secure_filename(f.filename))
+            f.save(p)
+            paths.append(p)
+            
+        res = lw_services.compose_batch(paths, session_id, layers)
+        
+        zip_filename = f"batch_processed_{uuid.uuid4().hex}.zip"
+        zip_path = os.path.join(current_app.config['UPLOAD_FOLDER'], zip_filename)
+        output_dir = res['output_dir']
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for root, dirs, filenames in os.walk(output_dir):
+                for f in filenames:
+                    fp = os.path.join(root, f)
+                    arc = os.path.relpath(fp, output_dir)
+                    zipf.write(fp, arc)
+                    
+        try:
+            shutil.rmtree(temp_dir)
+            shutil.rmtree(output_dir)
+        except Exception:
+            pass
+            
+        res['download_url'] = url_for('main.download_file', filename=zip_filename)
+        return jsonify(res)
+    except Exception as e:
+        traceback.print_exc()
+        return jsonify({'error': str(e)}), 500
+
+@main_bp.route('/compose/preset/save', methods=['POST'])
+def lw_preset_save():
+    name = request.form.get('name')
+    config = request.form.get('config')
+    if not name or not config:
+        return 'missing name or config', 400
+    os.makedirs(lw_services.PRESETS_DIR, exist_ok=True)
+    p_path = os.path.join(lw_services.PRESETS_DIR, f"{secure_filename(name)}.json")
+    with open(p_path, 'w', encoding='utf-8') as f:
+        f.write(config)
+    return 'ok'
+
+@main_bp.route('/compose/preset/load')
+def lw_preset_load():
+    import json
+    name = request.args.get('name')
+    if not name:
+        return jsonify({'error': 'missing name'}), 400
+    p_path = os.path.join(lw_services.PRESETS_DIR, f"{secure_filename(name)}.json")
+    if not os.path.exists(p_path):
+        return jsonify({'error': 'preset not found'}), 404
+    with open(p_path, 'r', encoding='utf-8') as f:
+        return jsonify(json.load(f))
+
+# ===== CHAUPHATSAFETY CRAWLER ROUTES =====
+
+@main_bp.route('/chauphatsafety', methods=['GET', 'POST'])
+def chauphatsafety_crawler():
+    return render_template('chauphatsafety_crawler.html')
+
+@main_bp.route('/crawl-chauphatsafety', methods=['POST'])
+@progress_tracker(name="Cào dữ liệu Châu Phát Safety", total_steps=100, verbose=True)
+def crawl_chauphatsafety(progress: TerminalProgressBar):
+    try:
+        progress.update(5, "Đang kiểm tra thông tin đầu vào")
+        
+        category_urls = request.form.get('category_urls', '').strip()
+        if not category_urls:
+            progress.error('Vui lòng nhập ít nhất một URL danh mục.')
+            flash('Vui lòng nhập ít nhất một URL danh mục.', 'error')
+            return redirect(url_for('main.chauphatsafety_crawler'))
+            
+        max_workers = int(request.form.get('max_workers', 8))
+        max_workers = min(max(1, max_workers), 16)
+        
+        max_retries = int(request.form.get('max_retries', 3))
+        
+        progress.update(10, "Đang chuẩn bị crawler", f"Max workers: {max_workers}")
+        
+        url_list = [u.strip() for u in category_urls.splitlines() if u.strip()]
+        
+        progress.update(15, f"Đã phân tích {len(url_list)} URLs", "Đang khởi tạo crawler")
+        
+        from app.crawlerChauphatsafety import ChauphatsafetyCrawler
+        
+        output_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], 'output_chauphatsafety')
+        os.makedirs(output_folder, exist_ok=True)
+        
+        crawler = ChauphatsafetyCrawler(
+            output_root=output_folder,
+            max_workers=max_workers,
+            max_retries=max_retries
+        )
+        
+        progress.update(20, "Bắt đầu cào dữ liệu", "Đang xử lý các URL...")
+        
+        start_time = time.time()
+        products, result_dir = crawler.crawl_products(url_list)
+        duration = time.time() - start_time
+        
+        progress.update(90, "Hoàn thành cào dữ liệu", f"Đã xử lý {len(products)} sản phẩm")
+        
+        if products:
+            progress.update(95, "Đang tạo báo cáo kết quả")
+            
+            zip_files = [f for f in os.listdir(result_dir) if f.endswith('.zip')]
+            if zip_files:
+                download_link = url_for('main.download_chauphatsafety_result', filename=zip_files[0])
+                flash(f'Cào dữ liệu thành công! Đã xử lý {len(products)} sản phẩm.', 'success')
+                progress.update(100, "Hoàn thành!", f"Kết quả: {len(products)} sản phẩm")
+                
+                stats = {
+                    "Sản phẩm đã xử lý": len(products),
+                    "Thời gian thực hiện": f"{duration:.2f} giây",
+                    "Số luồng sử dụng": max_workers
+                }
+                
+                safe_socketio_emit('crawler_completed', {
+                    'message': f'Đã cào thành công {len(products)} sản phẩm từ Châu Phát Safety',
+                    'zip_file': zip_files[0],
+                    'zip_filename': zip_files[0],
+                    'download_link': download_link,
+                    'result_dir': result_dir,
+                    'stats': stats
+                })
+                
+                return render_template('crawler_result.html', 
+                                     success=True,
+                                     message=f'Đã cào thành công {len(products)} sản phẩm',
+                                     download_link=download_link,
+                                     result_dir=result_dir,
+                                     products_count=len(products),
+                                     zip_filename=zip_files[0],
+                                     stats=stats,
+                                     crawler_type="Châu Phát Safety")
+            else:
+                flash('Cào dữ liệu thành công nhưng không tìm thấy file kết quả.', 'warning')
+        else:
+            flash('Không tìm thấy sản phẩm nào từ các URL đã nhập.', 'warning')
+            
+        progress.update(100, "Hoàn thành")
+        return redirect(url_for('main.chauphatsafety_crawler'))
+        
+    except Exception as e:
+        error_msg = f"Lỗi khi cào dữ liệu Châu Phát Safety: {str(e)}"
+        print(error_msg)
+        print(traceback.format_exc())
+        progress.error(error_msg)
+        flash(error_msg, 'error')
+        
+        safe_socketio_emit('crawler_error', {'message': error_msg})
+        return redirect(url_for('main.chauphatsafety_crawler'))
+
+@main_bp.route('/download-chauphatsafety-result/<filename>')
+def download_chauphatsafety_result(filename):
+    try:
+        output_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'output_chauphatsafety')
+        file_path = os.path.join(output_dir, filename)
+        
+        if not os.path.exists(file_path):
+            flash('File không tồn tại hoặc đã bị xóa', 'error')
+            return redirect(url_for('main.chauphatsafety_crawler'))
+            
+        return send_file(file_path, as_attachment=True)
+    except Exception as e:
+        logger.error(f"Lỗi khi tải kết quả Châu Phát: {str(e)}")
+        return jsonify({'error': f'Lỗi khi tải kết quả: {str(e)}'}), 500
+
+@main_bp.route('/crawl-ab-category-links', methods=['POST'])
+@progress_tracker(name="Cào link danh mục Allen Bradley", total_steps=100, verbose=True)
+def crawl_ab_category_links(progress: TerminalProgressBar):
+    try:
+        category_urls = request.form.get('category_urls', '').strip()
+        if not category_urls:
+            flash('Vui lòng nhập danh mục hoặc dán mã HTML!', 'error')
+            return redirect(url_for('main.index'))
+            
+        url_list = [u.strip() for u in category_urls.splitlines() if u.strip()]
+        
+        from app.crawlerAllenBradley import AllenBradleyCrawler
+        crawler = AllenBradleyCrawler(output_root=current_app.config['UPLOAD_FOLDER'])
+        
+        excel_path, count = crawler.crawl_category_links(url_list)
+        
+        if excel_path and os.path.exists(excel_path):
+            filename = os.path.basename(excel_path)
+            download_url = url_for('main.download_file', filename=filename)
+            flash(f'Đã cào thành công {count} link sản phẩm!', 'success')
+            return render_template('crawler_result.html',
+                                   download_url=download_url,
+                                   zip_filename=filename,
+                                   stats={"Link đã tìm thấy": count},
+                                   products_count=count,
+                                   crawler_type="Allen Bradley Links")
+        else:
+            flash('Không tìm thấy link sản phẩm nào!', 'warning')
+            return redirect(url_for('main.index'))
+            
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'Lỗi: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
+
+@main_bp.route('/crawl-ab-api-links', methods=['POST'])
+@progress_tracker(name="Cào link API Allen Bradley", total_steps=100, verbose=True)
+def crawl_ab_api_links(progress: TerminalProgressBar):
+    try:
+        api_url = request.form.get('api_url', '').strip()
+        page_size = int(request.form.get('page_size', 200))
+        total_expected = int(request.form.get('total_expected', 3000))
+        pagination_type = request.form.get('pagination_type', 'from_size')
+        offset_param = request.form.get('offset_param', '').strip() or None
+        limit_param = request.form.get('limit_param', '').strip() or None
+        
+        if not api_url:
+            flash('Vui lòng nhập API Request URL!', 'error')
+            return redirect(url_for('main.index'))
+            
+        from app.crawlerAllenBradley import AllenBradleyCrawler
+        crawler = AllenBradleyCrawler(output_root=current_app.config['UPLOAD_FOLDER'])
+        
+        excel_path, count = crawler.crawl_links_via_api(
+            api_url=api_url,
+            page_size=page_size,
+            total_expected=total_expected,
+            pagination_type=pagination_type,
+            offset_param=offset_param,
+            limit_param=limit_param
+        )
+        
+        if excel_path and os.path.exists(excel_path):
+            filename = os.path.basename(excel_path)
+            download_url = url_for('main.download_file', filename=filename)
+            flash(f'Đã cào thành công {count} link sản phẩm qua API!', 'success')
+            return render_template('crawler_result.html',
+                                   download_url=download_url,
+                                   zip_filename=filename,
+                                   stats={"Link đã tìm thấy": count},
+                                   products_count=count,
+                                   crawler_type="Allen Bradley API Links")
+        else:
+            flash('Không tìm thấy link sản phẩm nào qua API!', 'warning')
+            return redirect(url_for('main.index'))
+            
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'Lỗi: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
+
+@main_bp.route('/crawl-allen-bradley', methods=['POST'])
+@progress_tracker(name="Cào dữ liệu Allen Bradley", total_steps=100, verbose=True)
+def crawl_allen_bradley(progress: TerminalProgressBar):
+    try:
+        category_urls = request.form.get('category_urls', '').strip()
+        file = request.files.get('product_file')
+        
+        urls = []
+        if file and file.filename:
+            if file.filename.endswith('.txt'):
+                content = file.read().decode('utf-8')
+                urls.extend([u.strip() for u in content.splitlines() if u.strip()])
+            else:
+                import pandas as pd
+                df = pd.read_excel(file)
+                for col in df.columns:
+                    if 'link' in col.lower() or 'url' in col.lower():
+                        urls.extend(df[col].dropna().astype(str).tolist())
+                        break
+                else:
+                    urls.extend(df.iloc[:, 0].dropna().astype(str).tolist())
+                    
+        if category_urls:
+            urls.extend([u.strip() for u in category_urls.splitlines() if u.strip()])
+            
+        if not urls:
+            flash('Vui lòng nhập URL hoặc tải lên file!', 'error')
+            return redirect(url_for('main.index'))
+            
+        from app.crawlerAllenBradley import AllenBradleyCrawler
+        crawler = AllenBradleyCrawler(output_root=current_app.config['UPLOAD_FOLDER'])
+        
+        products, result_dir = crawler.crawl_products(urls)
+        
+        if products:
+            zip_files = [f for f in os.listdir(result_dir) if f.startswith('AllenBradley_Result_') and f.endswith('.zip')]
+            if zip_files:
+                zip_files.sort(key=lambda x: os.path.getmtime(os.path.join(result_dir, x)), reverse=True)
+                filename = zip_files[0]
+                download_url = url_for('main.download_file', filename=filename)
+                flash(f'Cào dữ liệu thành công! Đã xử lý {len(products)} sản phẩm Allen Bradley.', 'success')
+                return render_template('crawler_result.html',
+                                       download_url=download_url,
+                                       zip_filename=filename,
+                                       stats={"Sản phẩm cào được": len(products)},
+                                       products_count=len(products),
+                                       crawler_type="Allen Bradley Products")
+            else:
+                flash('Cào dữ liệu thành công nhưng không tìm thấy file ZIP kết quả.', 'warning')
+        else:
+            flash('Không cào được sản phẩm nào!', 'warning')
+            
+        return redirect(url_for('main.index'))
+        
+    except Exception as e:
+        traceback.print_exc()
+        flash(f'Lỗi: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
+
+
+
+
+
+# --- Dummy Routes for BuildErrors ---
+
+@main_bp.route('/dummy-crawl-cdha-catalog', methods=['GET', 'POST'])
+def crawl_cdha_catalog():
+    flash('This route (crawl_cdha_catalog) is currently under construction.', 'warning')
+    return redirect(url_for('main.index'))
+
+# ===== CƠ ĐIỆN HẢI ÂU CRAWLER ROUTES =====
+
+@main_bp.route('/crawl-codienhaiau', methods=['GET', 'POST'])
+@main_bp.route('/crawl_codienhaiau', methods=['GET', 'POST'])
+@progress_tracker(name="Cào dữ liệu Cơ Điện Hải Âu", total_steps=100, verbose=True)
+def crawl_codienhaiau(progress: TerminalProgressBar):
+    if request.method == 'GET':
+        return redirect(url_for('main.index'))
+    
+    try:
+        progress.update(5, "Đang kiểm tra thông tin đầu vào")
+        
+        category_urls = request.form.get('category_urls', '').strip()
+        if not category_urls:
+            progress.error('Vui lòng nhập ít nhất một URL danh mục hoặc sản phẩm.')
+            flash('Vui lòng nhập ít nhất một URL danh mục hoặc sản phẩm.', 'error')
+            return redirect(url_for('main.index'))
+        
+        max_workers = int(request.form.get('max_workers', 8))
+        max_retries = int(request.form.get('max_retries', 3))
+        
+        max_workers = min(max(1, max_workers), 16)
+        max_retries = min(max(1, max_retries), 5)
+        
+        progress.update(10, "Đang chuẩn bị crawler", f"Max workers: {max_workers}, Max retries: {max_retries}")
+        
+        url_list = [u.strip() for u in category_urls.splitlines() if u.strip()]
+        
+        progress.update(15, f"Đã phân tích {len(url_list)} URLs", "Đang khởi tạo CDHA crawler")
+        
+        from app.crawlerCDHA import CDHACrawler
+        
+        output_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], 'output_cdha')
+        os.makedirs(output_folder, exist_ok=True)
+        
+        crawler = CDHACrawler(
+            output_root=output_folder,
+            max_workers=max_workers,
+            max_retries=max_retries
+        )
+        
+        progress.update(20, "Bắt đầu cào dữ liệu", "Đang xử lý các URL...")
+        
+        start_time = time.time()
+        products, result_dir = crawler.crawl_products(url_list)
+        duration = time.time() - start_time
+        
+        progress.update(90, "Hoàn thành cào dữ liệu", f"Đã xử lý {len(products)} sản phẩm")
+        
+        if products and result_dir and os.path.exists(result_dir):
+            progress.update(95, "Đang tạo báo cáo kết quả")
+            zip_files = [f for f in os.listdir(result_dir) if f.endswith('.zip')]
+            if zip_files:
+                download_link = url_for('main.download_cdha_result', filename=zip_files[0])
+                flash(f'Cào dữ liệu thành công! Đã xử lý {len(products)} sản phẩm từ Cơ Điện Hải Âu.', 'success')
+                progress.update(100, "Hoàn thành!", f"Kết quả: {len(products)} sản phẩm")
+                
+                stats = {
+                    "Sản phẩm đã xử lý": len(products),
+                    "Thời gian thực hiện": f"{duration:.2f} giây",
+                    "Số luồng sử dụng": max_workers,
+                    "Số lần retry": max_retries
+                }
+                
+                return render_template('crawler_result.html', 
+                                     success=True,
+                                     message=f'Đã cào thành công {len(products)} sản phẩm từ Cơ Điện Hải Âu',
+                                     download_link=download_link,
+                                     result_dir=result_dir,
+                                     products_count=len(products),
+                                     zip_filename=zip_files[0],
+                                     stats=stats,
+                                     crawler_type="Cơ Điện Hải Âu")
+            else:
+                flash('Cào dữ liệu thành công nhưng không tìm thấy file ZIP kết quả.', 'warning')
+        else:
+            flash('Không tìm thấy sản phẩm nào từ các URL đã nhập.', 'warning')
+        
+        progress.update(100, "Hoàn thành")
+        return redirect(url_for('main.index'))
+        
+    except Exception as e:
+        error_msg = f"Lỗi khi cào dữ liệu Cơ Điện Hải Âu: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        progress.error(error_msg)
+        flash(error_msg, 'error')
+        return redirect(url_for('main.index'))
+
+
+@main_bp.route('/download-cdha-result/<path:filename>')
+@main_bp.route('/download_cdha_result/<path:filename>')
+def download_cdha_result(filename):
+    """Tải xuống file kết quả cào Cơ Điện Hải Âu"""
+    try:
+        output_cdha = os.path.join(current_app.config['UPLOAD_FOLDER'], 'output_cdha')
+        direct_path = os.path.join(output_cdha, filename)
+        if os.path.exists(direct_path) and os.path.isfile(direct_path):
+            return send_file(direct_path, as_attachment=True)
+            
+        for root, dirs, files in os.walk(output_cdha):
+            if filename in files:
+                return send_file(os.path.join(root, filename), as_attachment=True)
+                
+        flash('File kết quả không tồn tại hoặc đã bị xóa.', 'error')
+        return redirect(url_for('main.index'))
+    except Exception as e:
+        logger.error(f"Lỗi khi tải file kết quả CDHA: {str(e)}")
+        flash(f'Lỗi khi tải kết quả: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
+
+
+# ===== THẾ GIỚI CÁP SERVO CRAWLER ROUTES =====
+
+@main_bp.route('/crawl-thegioicapservo', methods=['GET', 'POST'])
+@main_bp.route('/crawl_thegioicapservo', methods=['GET', 'POST'])
+@progress_tracker(name="Cào dữ liệu Thế Giới Cáp Servo", total_steps=100, verbose=True)
+def crawl_thegioicapservo(progress: TerminalProgressBar):
+    if request.method == 'GET':
+        return redirect(url_for('main.index'))
+    
+    try:
+        progress.update(5, "Đang kiểm tra thông tin đầu vào")
+        
+        category_urls = request.form.get('category_urls', '').strip()
+        if not category_urls:
+            progress.error('Vui lòng nhập ít nhất một URL danh mục hoặc sản phẩm.')
+            flash('Vui lòng nhập ít nhất một URL danh mục hoặc sản phẩm.', 'error')
+            return redirect(url_for('main.index'))
+        
+        max_workers = int(request.form.get('max_workers', 6))
+        max_retries = int(request.form.get('max_retries', 3))
+        
+        max_workers = min(max(1, max_workers), 16)
+        max_retries = min(max(1, max_retries), 5)
+        
+        progress.update(10, "Đang chuẩn bị crawler", f"Max workers: {max_workers}, Max retries: {max_retries}")
+        
+        url_list = [u.strip() for u in category_urls.splitlines() if u.strip()]
+        
+        progress.update(15, f"Đã phân tích {len(url_list)} URLs", "Đang khởi tạo TheGioiCapServo crawler")
+        
+        from app.crawlerTheGioiCapServo import TheGioiCapServoCrawler
+        
+        output_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], 'output_thegioicapservo')
+        os.makedirs(output_folder, exist_ok=True)
+        
+        crawler = TheGioiCapServoCrawler(
+            output_root=output_folder,
+            max_workers=max_workers,
+            max_retries=max_retries
+        )
+        
+        progress.update(20, "Bắt đầu cào dữ liệu", "Đang xử lý các URL...")
+        
+        start_time = time.time()
+        products, result_dir = crawler.crawl_products(url_list)
+        duration = time.time() - start_time
+        
+        progress.update(90, "Hoàn thành cào dữ liệu", f"Đã xử lý {len(products)} sản phẩm")
+        
+        if products and result_dir and os.path.exists(result_dir):
+            progress.update(95, "Đang tạo báo cáo kết quả")
+            zip_files = [f for f in os.listdir(result_dir) if f.endswith('.zip')]
+            if zip_files:
+                download_link = url_for('main.download_thegioicapservo_result', filename=zip_files[0])
+                flash(f'Cào dữ liệu thành công! Đã xử lý {len(products)} sản phẩm từ Thế Giới Cáp Servo.', 'success')
+                progress.update(100, "Hoàn thành!", f"Kết quả: {len(products)} sản phẩm")
+                
+                stats = {
+                    "Sản phẩm đã xử lý": len(products),
+                    "Thời gian thực hiện": f"{duration:.2f} giây",
+                    "Số luồng sử dụng": max_workers,
+                    "Số lần retry": max_retries
+                }
+                
+                return render_template('crawler_result.html', 
+                                     success=True,
+                                     message=f'Đã cào thành công {len(products)} sản phẩm từ Thế Giới Cáp Servo',
+                                     download_link=download_link,
+                                     result_dir=result_dir,
+                                     products_count=len(products),
+                                     zip_filename=zip_files[0],
+                                     stats=stats,
+                                     crawler_type="Thế Giới Cáp Servo")
+            else:
+                flash('Cào dữ liệu thành công nhưng không tìm thấy file ZIP kết quả.', 'warning')
+        else:
+            flash('Không tìm thấy sản phẩm nào từ các URL đã nhập.', 'warning')
+        
+        progress.update(100, "Hoàn thành")
+        return redirect(url_for('main.index'))
+        
+    except Exception as e:
+        error_msg = f"Lỗi khi cào dữ liệu Thế Giới Cáp Servo: {str(e)}"
+        logger.error(error_msg, exc_info=True)
+        progress.error(error_msg)
+        flash(error_msg, 'error')
+        return redirect(url_for('main.index'))
+
+
+@main_bp.route('/download-thegioicapservo-result/<path:filename>')
+@main_bp.route('/download_thegioicapservo_result/<path:filename>')
+def download_thegioicapservo_result(filename):
+    """Tải xuống file kết quả cào Thế Giới Cáp Servo"""
+    try:
+        output_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'output_thegioicapservo')
+        direct_path = os.path.join(output_dir, filename)
+        if os.path.exists(direct_path) and os.path.isfile(direct_path):
+            return send_file(direct_path, as_attachment=True)
+            
+        for root, dirs, files in os.walk(output_dir):
+            if filename in files:
+                return send_file(os.path.join(root, filename), as_attachment=True)
+                
+        flash('File kết quả không tồn tại hoặc đã bị xóa.', 'error')
+        return redirect(url_for('main.index'))
+    except Exception as e:
+        logger.error(f"Lỗi khi tải file kết quả Thế Giới Cáp Servo: {str(e)}")
+        flash(f'Lỗi khi tải kết quả: {str(e)}', 'error')
+        return redirect(url_for('main.index'))
+
+
+@main_bp.route('/dummy-crawl-cognex', methods=['GET', 'POST'])
+def crawl_cognex():
+    flash('This route (crawl_cognex) is currently under construction.', 'warning')
+    return redirect(url_for('main.index'))
+
+@main_bp.route('/dummy-crawl-ifm', methods=['GET', 'POST'])
+def crawl_ifm():
+    flash('This route (crawl_ifm) is currently under construction.', 'warning')
+    return redirect(url_for('main.index'))
+
+@main_bp.route('/dummy-crawl-lsa', methods=['GET', 'POST'])
+def crawl_lsa():
+    flash('This route (crawl_lsa) is currently under construction.', 'warning')
+    return redirect(url_for('main.index'))
+
+@main_bp.route('/dummy-crawl-panasonic', methods=['GET', 'POST'])
+def crawl_panasonic():
+    flash('This route (crawl_panasonic) is currently under construction.', 'warning')
+    return redirect(url_for('main.index'))
+
+@main_bp.route('/dummy-crawl-panasonic-catalog', methods=['GET', 'POST'])
+def crawl_panasonic_catalog():
+    flash('This route (crawl_panasonic_catalog) is currently under construction.', 'warning')
+    return redirect(url_for('main.index'))
+
+@main_bp.route('/dummy-crawl-sunje', methods=['GET', 'POST'])
+def crawl_sunje():
+    flash('This route (crawl_sunje) is currently under construction.', 'warning')
+    return redirect(url_for('main.index'))
+
+@main_bp.route('/dummy-crawl-woonyoung', methods=['GET', 'POST'])
+def crawl_woonyoung():
+    flash('This route (crawl_woonyoung) is currently under construction.', 'warning')
+    return redirect(url_for('main.index'))
+
+@main_bp.route('/dummy-merge-ab-links', methods=['GET', 'POST'])
+def merge_ab_links():
+    flash('This route (merge_ab_links) is currently under construction.', 'warning')
+    return redirect(url_for('main.index'))
+
+@main_bp.route('/dummy-merge-excel', methods=['GET', 'POST'])
+def merge_excel():
+    flash('This route (merge_excel) is currently under construction.', 'warning')
+    return redirect(url_for('main.index'))
+
+@main_bp.route('/dummy-merge-excel-folder', methods=['GET', 'POST'])
+def merge_excel_folder():
+    flash('This route (merge_excel_folder) is currently under construction.', 'warning')
+    return redirect(url_for('main.index'))
+
+
+# ===== SICK CRAWLER ROUTES =====
+
+@main_bp.route('/sick', methods=['GET'])
+def sick_crawler():
+    """Trang giao diện SICK Crawler"""
+    return render_template('sick_crawler.html')
+
+
+@main_bp.route('/crawl_sick', methods=['POST'])
+@main_bp.route('/crawl-sick', methods=['POST'])
+def crawl_sick():
+    """API endpoint để cào dữ liệu SICK theo URL danh mục hoặc mã sản phẩm"""
+    try:
+        from app.crawlerSICK import SICKCrawler
+
+        crawl_mode = 'category'
+        category_urls_raw = ''
+        product_codes_raw = ''
+        max_workers = 5
+        download_media = True
+
+        if request.is_json:
+            data = request.get_json() or {}
+            crawl_mode = data.get('crawl_mode', 'category')
+            category_urls_raw = data.get('category_urls', '')
+            product_codes_raw = data.get('product_codes', '')
+            max_workers = int(data.get('max_workers', 5))
+            download_media = bool(data.get('download_media', True))
+        else:
+            crawl_mode = request.form.get('crawl_mode', 'category')
+            category_urls_raw = request.form.get('category_urls', '')
+            product_codes_raw = request.form.get('product_codes', '')
+            max_workers = int(request.form.get('max_workers', 5))
+            download_media = 'download_media' in request.form
+
+            # Kiểm tra nếu người dùng upload file mã sản phẩm (.txt, .csv, .xlsx, .xls)
+            if 'product_code_file' in request.files:
+                file = request.files['product_code_file']
+                if file and file.filename:
+                    ext = os.path.splitext(file.filename)[1].lower()
+                    if ext in ['.txt', '.csv']:
+                        file_content = file.read().decode('utf-8', errors='ignore')
+                        product_codes_raw = file_content
+                        crawl_mode = 'product_code'
+                    elif ext in ['.xlsx', '.xls']:
+                        try:
+                            df_in = pd.read_excel(file)
+                            code_col = None
+                            for col in df_in.columns:
+                                col_str = str(col).lower()
+                                if any(k in col_str for k in ['mã', 'code', 'part', 'model', 'sku', 'art']):
+                                    code_col = col
+                                    break
+                            if code_col is None and len(df_in.columns) > 0:
+                                code_col = df_in.columns[0]
+                            if code_col is not None:
+                                product_codes_raw = "\n".join([str(val).strip() for val in df_in[code_col] if pd.notna(val) and str(val).strip()])
+                                crawl_mode = 'product_code'
+                        except Exception as ex_read:
+                            logger.warning(f"Lỗi đọc file Excel mã sản phẩm: {ex_read}")
+
+        # Tự động nhận diện nếu người dùng dán nhầm ô hoặc không chọn mode
+        if crawl_mode == 'product_code' and not product_codes_raw and category_urls_raw:
+            product_codes_raw = category_urls_raw
+        elif crawl_mode == 'category' and not category_urls_raw and product_codes_raw:
+            p_lines = [l.strip() for l in product_codes_raw.splitlines() if l.strip()]
+            if any(l.startswith('http://') or l.startswith('https://') for l in p_lines):
+                category_urls_raw = product_codes_raw
+            else:
+                crawl_mode = 'product_code'
+
+        output_folder = os.path.join(current_app.config['UPLOAD_FOLDER'], 'output_sick')
+        os.makedirs(output_folder, exist_ok=True)
+        crawler = SICKCrawler(max_workers=max_workers, output_root=output_folder, socketio=socketio)
+
+        if crawl_mode == 'product_code' or (product_codes_raw and not category_urls_raw):
+            if isinstance(product_codes_raw, list):
+                codes = [c.strip() for c in product_codes_raw if c.strip()]
+            else:
+                codes = [c.strip() for c in (product_codes_raw or '').splitlines() if c.strip()]
+
+            if not codes:
+                return jsonify({
+                    'success': False,
+                    'message': 'Vui lòng nhập ít nhất một mã sản phẩm SICK hoặc tải lên file.'
+                }), 400
+
+            result = crawler.run_crawling_by_codes_sync(codes, download_media=download_media)
+            return jsonify(result)
+
+        else:
+            if isinstance(category_urls_raw, list):
+                urls = [u.strip() for u in category_urls_raw if u.strip()]
+            else:
+                urls = [u.strip() for u in (category_urls_raw or '').splitlines() if u.strip()]
+
+            if not urls:
+                return jsonify({
+                    'success': False,
+                    'message': 'Vui lòng nhập ít nhất một URL danh mục SICK.'
+                }), 400
+
+            result = crawler.run_crawling_sync(urls, download_media=download_media)
+            return jsonify(result)
+
+    except Exception as e:
+        logger.error(f"Lỗi khi cào dữ liệu SICK: {str(e)}", exc_info=True)
+        return jsonify({
+            'success': False,
+            'message': f'Lỗi hệ thống: {str(e)}'
+        }), 500
+
+
+@main_bp.route('/download_sick/<path:filename>')
+@main_bp.route('/download-sick-result/<path:filename>')
+def download_sick(filename):
+    """Tải xuống file kết quả cào SICK (file ZIP)"""
+    try:
+        output_dir = os.path.join(current_app.config['UPLOAD_FOLDER'], 'output_sick')
+        file_path = os.path.join(output_dir, filename)
+
+        if not os.path.exists(file_path):
+            flash('File kết quả không tồn tại hoặc đã bị xóa.', 'error')
+            return redirect(url_for('main.sick_crawler'))
+
+        return send_file(file_path, as_attachment=True)
+    except Exception as e:
+        logger.error(f"Lỗi khi tải kết quả SICK: {str(e)}")
+        return jsonify({'error': f'Lỗi khi tải kết quả: {str(e)}'}), 500
+
